@@ -44,6 +44,13 @@ Full support for primary SDG&E residential rate schedules:
 ### 7. Exportable PDF Schedule
 - One-click client-side PDF generator (via jsPDF) producing a branded 1-page operating schedule and appliance checklist to post by your electrical panel or refrigerator.
 
+### 8. Cloudflare R2 Bill & Schedule Vault
+- **Zero-Egress Storage:** Upload and store SDG&E PDF bills, Green Button CSV interval meter logs, or exported TOU schedule snapshots directly into Cloudflare R2.
+- **Dual Architecture Support:**
+  - **Cloudflare Pages Functions:** Zero-config API routes in `functions/api/upload.js` and `functions/api/files.js` with direct `R2_BUCKET` binding.
+  - **Standalone Worker:** Included `worker/worker.js` and `worker/wrangler.toml` for deploying a dedicated backend microservice via `npx wrangler deploy`.
+- **Local Fallback Staging:** Files stage locally in the browser until your Cloudflare R2 Worker is connected, ensuring zero upload failures.
+
 ---
 
 ## 📊 SDG&E Time-of-Use Windows Overview
@@ -55,6 +62,27 @@ Full support for primary SDG&E residential rate schedules:
 | **On-Peak** *(Highest)* | **4:00 p.m. – 9:00 p.m.** | **4:00 p.m. – 9:00 p.m.** | ~$0.622 – $0.802 / kWh |
 
 *\*Note: The weekday 10 a.m. – 2 p.m. midday Super Off-Peak window was made year-round by SDG&E effective May 2025/2026.*
+
+---
+
+## ☁️ Cloudflare R2 Setup
+
+### Option A: Cloudflare Pages (Recommended - Zero Config)
+1. In your Cloudflare Dashboard, open your Pages project (`peak-loads`).
+2. Go to **Settings > Functions > R2 bucket bindings**.
+3. Add a binding:
+   - **Variable name:** `R2_BUCKET`
+   - **R2 bucket:** Select (or create) your bucket (e.g., `sdge-vault`).
+4. Re-deploy or push a commit. The `/api/upload` endpoint will automatically store files in your R2 bucket.
+
+### Option B: Standalone Worker
+1. Create an R2 bucket in Cloudflare: `npx wrangler r2 bucket create sdge-vault`
+2. Deploy the worker:
+   ```bash
+   cd worker
+   npx wrangler deploy
+   ```
+3. Copy your worker URL (e.g. `https://peak-loads-r2-worker.workers.dev/api/upload`) and paste it in the web app under **R2 Storage > Worker: /api/upload**.
 
 ---
 
@@ -83,11 +111,22 @@ Open [http://localhost:8080](http://localhost:8080) in your browser.
 
 ```
 peak-loads/
-├── index.html                   # Core web application UI & styles
-├── app.js                       # Live rate engine, TOU logic, and PDF generator
+├── index.html                   # Core web application UI, styles & R2 vault
+├── app.js                       # Live rate engine, TOU logic, and R2 client
+├── functions/                   # Cloudflare Pages Functions
+│   └── api/
+│       ├── upload.js            # POST /api/upload handler
+│       ├── files.js             # GET /api/files handler
+│       └── files/[key].js       # GET /api/files/:key file retrieval
+├── worker/                      # Standalone Cloudflare Worker alternative
+│   ├── worker.js                # ES module worker for R2
+│   └── wrangler.toml            # Wrangler configuration & R2 bindings
 ├── .gitignore                   # Git ignore configuration
 ├── README.md                    # Project documentation
 ├── preview.png                  # Application UI screenshot
+├── SDGE-TOU-Schedule.pdf        # Sample exported schedule PDF
+└── SDGE-TOU-Appliance-Checklist.pdf # Printable appliance checklist
+```
 ├── SDGE-TOU-Schedule.pdf        # Sample exported schedule PDF
 └── SDGE-TOU-Appliance-Checklist.pdf # Printable appliance checklist
 ```

@@ -1257,6 +1257,186 @@
     flex-wrap: wrap;
   }
 
+  /* === CLOUDFLARE R2 VAULT === */
+  .r2-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+    position: relative;
+    overflow: hidden;
+  }
+  .r2-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .r2-head-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .r2-icon-wrap {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: rgba(79, 152, 163, 0.12);
+    border: 1px solid rgba(79, 152, 163, 0.3);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .r2-title {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .r2-meta {
+    font-size: 12px;
+    color: var(--text-mid);
+    margin-top: 3px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .r2-dropzone {
+    border: 2px dashed var(--border-hi);
+    border-radius: 16px;
+    padding: 36px 24px;
+    text-align: center;
+    background: var(--bg);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .r2-dropzone:hover, .r2-dropzone.dragover {
+    border-color: var(--accent);
+    background: rgba(79, 152, 163, 0.05);
+  }
+  .r2-upload-icon {
+    color: var(--accent);
+    margin-bottom: 12px;
+    opacity: 0.9;
+  }
+  .r2-drop-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .r2-drop-sub {
+    font-size: 12px;
+    color: var(--text-mid);
+    margin-bottom: 18px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .r2-progress-wrap {
+    margin-top: 20px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+  }
+  .r2-progress-head {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+  .r2-progress-bar {
+    height: 6px;
+    background: var(--border);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .r2-progress-fill {
+    height: 100%;
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
+    transition: width 0.3s ease;
+  }
+  .r2-vault-list-wrap {
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+  }
+  .r2-vault-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .r2-vault-title {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-mid);
+  }
+  .r2-file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .r2-file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    gap: 16px;
+    flex-wrap: wrap;
+    transition: border-color 0.15s;
+  }
+  .r2-file-item:hover {
+    border-color: var(--border-hi);
+  }
+  .r2-file-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .r2-file-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    background: rgba(79, 152, 163, 0.15);
+    color: var(--accent);
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+  .r2-file-name {
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .r2-file-meta {
+    font-size: 11px;
+    color: var(--text-low);
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 2px;
+  }
+  .r2-file-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .r2-empty {
+    text-align: center;
+    padding: 32px;
+    color: var(--text-low);
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
   /* Footer */
   .footer {
     margin-top: 80px;
@@ -1524,6 +1704,71 @@
     <div class="savings-card" id="savings"></div>
   </div>
 
+  <!-- CLOUDFLARE R2 BILL & SCHEDULE VAULT -->
+  <div class="section">
+    <div class="section-head">
+      <h2 class="section-title"><span class="num">06</span>Cloudflare R2 storage</h2>
+      <p class="section-sub">Upload your SDG&amp;E billing statements, interval meter CSVs, or schedule snapshots directly to your Cloudflare R2 zero-egress bucket.</p>
+    </div>
+    <div class="r2-card">
+      <div class="r2-head">
+        <div class="r2-head-left">
+          <div class="r2-icon-wrap">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/><polyline points="12 12 12 16 12 12"/><polyline points="9 13 12 10 15 13"/></svg>
+          </div>
+          <div>
+            <div class="r2-title">Bill &amp; Schedule Vault</div>
+            <div class="r2-meta">Zero-Egress Object Storage · Cloudflare R2</div>
+          </div>
+        </div>
+        <div class="r2-endpoint-config">
+          <button class="btn ghost btn-sm" id="r2ConfigBtn" title="Configure Cloudflare Worker upload URL">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span id="r2StatusBadge">Worker: /api/upload</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Drag & Drop Zone -->
+      <div class="r2-dropzone" id="r2Dropzone">
+        <input type="file" id="r2FileInput" style="display:none;" multiple accept=".pdf,.csv,.json,.png,.jpg,.jpeg">
+        <div class="r2-drop-content">
+          <div class="r2-upload-icon">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <div class="r2-drop-title">Drop SDG&amp;E bills, interval CSVs, or schedule exports here</div>
+          <div class="r2-drop-sub">PDF, CSV, JSON, PNG up to 50MB · Uploads securely to your Cloudflare R2 bucket</div>
+          <button class="btn" type="button" id="r2SelectBtn">Browse Files</button>
+        </div>
+      </div>
+
+      <!-- Upload Progress -->
+      <div class="r2-progress-wrap" id="r2ProgressWrap" style="display:none;">
+        <div class="r2-progress-head">
+          <span id="r2ProgressLabel">Uploading to R2...</span>
+          <span id="r2ProgressPct">0%</span>
+        </div>
+        <div class="r2-progress-bar">
+          <div class="r2-progress-fill" id="r2ProgressFill" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <!-- Uploaded Files List -->
+      <div class="r2-vault-list-wrap">
+        <div class="r2-vault-head">
+          <div class="r2-vault-title">Vault Files</div>
+          <button class="btn ghost btn-sm" id="r2RefreshBtn">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19"/></svg>
+            Refresh
+          </button>
+        </div>
+        <div class="r2-file-list" id="r2FileList">
+          <div class="r2-empty">No files uploaded yet. Drag and drop bills or schedules above to store in your R2 bucket.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <footer class="footer">
     <strong style="color:var(--text-mid)">Source:</strong> SDG&amp;E Schedule TOU-DR1, EV-TOU-5, and TOU-DR2 residential tariffs. Rates effective 2026. On-Peak is 4–9 p.m. daily. Super Off-Peak weekday hours: 12 a.m.–6 a.m. and 10 a.m.–2 p.m. (expanded year-round as of May 1, 2025/2026).<br>
     References: <a href="https://www.sdge.com/super-off-peak-residential" target="_blank">SDG&amp;E Extended Super Off-Peak</a> · <a href="https://www.sdge.com/residential/pricing-plans" target="_blank">Residential Pricing Plans</a> · <a href="https://www.sdge.com/rates-and-regulations/current-and-effective-tariffs" target="_blank">Current Effective Tariffs</a> · <a href="https://sdcommunitypower.org" target="_blank">San Diego Community Power (SDCP)</a>.<br>
@@ -1579,6 +1824,46 @@
       <div style="display:flex;gap:8px;">
         <button class="btn ghost" id="modalCancelBtn">Cancel</button>
         <button class="btn" id="modalSaveBtn">Save &amp; Apply</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CLOUDFLARE R2 CONFIG MODAL -->
+<div class="modal-overlay" id="r2ConfigModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">Cloudflare R2 Worker Endpoint</div>
+        <div class="modal-subtitle">Connect your Cloudflare Worker or Pages Function URL to store bills &amp; schedules directly in your private R2 bucket.</div>
+      </div>
+      <button class="modal-close" id="r2ConfigCloseBtn">&times;</button>
+    </div>
+
+    <div class="modal-field" style="margin-top:16px;">
+      <label>Worker Upload API URL</label>
+      <input type="text" id="r2EndpointInput" placeholder="/api/upload (or https://your-worker.workers.dev/api/upload)">
+      <div style="font-size:11px;color:var(--text-mid);margin-top:4px;">
+        Leave as <code>/api/upload</code> if using Cloudflare Pages Functions, or paste your standalone Cloudflare Worker URL.
+      </div>
+    </div>
+
+    <div class="modal-field" style="margin-top:16px;">
+      <label>Target R2 Bucket Name</label>
+      <input type="text" id="r2BucketNameInput" placeholder="sdge-vault">
+    </div>
+
+    <div style="margin-top:20px;padding:14px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;font-size:12px;color:var(--text-mid);line-height:1.5;">
+      <strong style="color:var(--text);">Setup status:</strong><br>
+      • <strong>Cloudflare Pages (Direct):</strong> Go to Cloudflare Pages &gt; <em>Settings &gt; Functions &gt; R2 bucket bindings</em> and bind <code>R2_BUCKET</code> to your bucket.<br>
+      • <strong>Standalone Worker:</strong> Run <code>npx wrangler deploy</code> inside the <code>worker/</code> directory and paste the generated worker URL above.
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn ghost" id="r2ConfigResetBtn">Reset to /api/upload</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn ghost" id="r2ConfigCancelBtn">Cancel</button>
+        <button class="btn" id="r2ConfigSaveBtn">Save Endpoint</button>
       </div>
     </div>
   </div>

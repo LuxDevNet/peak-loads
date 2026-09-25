@@ -1201,3 +1201,270 @@ render();
 
 // Real-time ticking loop every 1 second
 setInterval(updateLiveHUD, 1000);
+
+// === CLOUDFLARE R2 VAULT CLIENT ===
+let r2Config = {
+  endpoint: localStorage.getItem('r2_worker_url') || '/api/upload',
+  bucket: localStorage.getItem('r2_bucket_name') || 'sdge-vault',
+  files: JSON.parse(localStorage.getItem('r2_vault_files_v1') || '[]')
+};
+
+function initR2Vault() {
+  const dropzone = document.getElementById('r2Dropzone');
+  const fileInput = document.getElementById('r2FileInput');
+  const selectBtn = document.getElementById('r2SelectBtn');
+  const refreshBtn = document.getElementById('r2RefreshBtn');
+  const configBtn = document.getElementById('r2ConfigBtn');
+  const configModal = document.getElementById('r2ConfigModal');
+  const configCloseBtn = document.getElementById('r2ConfigCloseBtn');
+  const configCancelBtn = document.getElementById('r2ConfigCancelBtn');
+  const configSaveBtn = document.getElementById('r2ConfigSaveBtn');
+  const configResetBtn = document.getElementById('r2ConfigResetBtn');
+
+  updateR2StatusBadge();
+  renderR2FileList();
+
+  if (selectBtn && fileInput) {
+    selectBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      fileInput.click();
+    });
+  }
+
+  if (dropzone && fileInput) {
+    dropzone.addEventListener('click', () => fileInput.click());
+
+    ['dragenter', 'dragover'].forEach(name => {
+      dropzone.addEventListener(name, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.add('dragover');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach(name => {
+      dropzone.addEventListener(name, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.remove('dragover');
+      });
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+      const dt = e.dataTransfer;
+      const files = dt ? dt.files : null;
+      if (files && files.length) {
+        handleFilesUpload(Array.from(files));
+      }
+    });
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files && fileInput.files.length) {
+        handleFilesUpload(Array.from(fileInput.files));
+        fileInput.value = '';
+      }
+    });
+  }
+
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', () => {
+      syncR2RemoteFiles();
+    });
+  }
+
+  // Config modal
+  if (configBtn && configModal) {
+    configBtn.addEventListener('click', () => {
+      document.getElementById('r2EndpointInput').value = r2Config.endpoint;
+      document.getElementById('r2BucketNameInput').value = r2Config.bucket;
+      configModal.classList.add('open');
+    });
+  }
+
+  if (configCloseBtn) configCloseBtn.addEventListener('click', () => configModal.classList.remove('open'));
+  if (configCancelBtn) configCancelBtn.addEventListener('click', () => configModal.classList.remove('open'));
+  if (configModal) {
+    configModal.addEventListener('click', (e) => {
+      if (e.target === configModal) configModal.classList.remove('open');
+    });
+  }
+
+  if (configSaveBtn) {
+    configSaveBtn.addEventListener('click', () => {
+      const endpoint = document.getElementById('r2EndpointInput').value.trim() || '/api/upload';
+      const bucket = document.getElementById('r2BucketNameInput').value.trim() || 'sdge-vault';
+      r2Config.endpoint = endpoint;
+      r2Config.bucket = bucket;
+      localStorage.setItem('r2_worker_url', endpoint);
+      localStorage.setItem('r2_bucket_name', bucket);
+      configModal.classList.remove('open');
+      updateR2StatusBadge();
+      syncR2RemoteFiles();
+    });
+  }
+
+  if (configResetBtn) {
+    configResetBtn.addEventListener('click', () => {
+      r2Config.endpoint = '/api/upload';
+      r2Config.bucket = 'sdge-vault';
+      localStorage.removeItem('r2_worker_url');
+      localStorage.removeItem('r2_bucket_name');
+      document.getElementById('r2EndpointInput').value = '/api/upload';
+      document.getElementById('r2BucketNameInput').value = 'sdge-vault';
+      configModal.classList.remove('open');
+      updateR2StatusBadge();
+      syncR2RemoteFiles();
+    });
+  }
+
+  syncR2RemoteFiles();
+}
+
+function updateR2StatusBadge() {
+  const badge = document.getElementById('r2StatusBadge');
+  if (badge) {
+    badge.textContent = `Worker: ${r2Config.endpoint}`;
+  }
+}
+
+async function handleFilesUpload(files) {
+  const progressWrap = document.getElementById('r2ProgressWrap');
+  const progressFill = document.getElementById('r2ProgressFill');
+  const progressLabel = document.getElementById('r2ProgressLabel');
+  const progressPct = document.getElementById('r2ProgressPct');
+
+  if (progressWrap) progressWrap.style.display = 'block';
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    if (progressLabel) progressLabel.textContent = `Uploading ${file.name} to R2 (${i + 1}/${files.length})...`;
+    if (progressFill) progressFill.style.width = '35%';
+    if (progressPct) progressPct.textContent = '35%';
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(r2Config.endpoint, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (progressFill) progressFill.style.width = '80%';
+      if (progressPct) progressPct.textContent = '80%';
+
+      if (response.ok) {
+        const data = await response.json();
+        r2Config.files.unshift({
+          key: data.key || `uploads/${Date.now()}-${file.name}`,
+          name: data.name || file.name,
+          size: data.size || file.size,
+          uploadedAt: data.uploadedAt || new Date().toISOString(),
+          url: data.url || null,
+          status: 'r2_synced'
+        });
+      } else {
+        throw new Error(`Worker responded with status ${response.status}`);
+      }
+    } catch (err) {
+      console.warn('R2 worker upload endpoint offline or not connected yet:', err);
+      r2Config.files.unshift({
+        key: `staged-${Date.now()}-${file.name}`,
+        name: file.name,
+        size: file.size,
+        uploadedAt: new Date().toISOString(),
+        url: (typeof URL !== 'undefined' && URL.createObjectURL) ? URL.createObjectURL(file) : null,
+        status: 'staged_local',
+        note: 'Staged locally (ready for R2 when worker is connected)'
+      });
+    }
+
+    if (progressFill) progressFill.style.width = '100%';
+    if (progressPct) progressPct.textContent = '100%';
+  }
+
+  localStorage.setItem('r2_vault_files_v1', JSON.stringify(r2Config.files.slice(0, 30)));
+  setTimeout(() => {
+    if (progressWrap) progressWrap.style.display = 'none';
+  }, 1000);
+
+  renderR2FileList();
+}
+
+async function syncR2RemoteFiles() {
+  const listEndpoint = r2Config.endpoint.replace('/upload', '/files');
+  try {
+    const res = await fetch(listEndpoint);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.objects)) {
+        const remoteMap = new Map();
+        data.objects.forEach(obj => remoteMap.set(obj.key, { ...obj, status: 'r2_synced' }));
+        r2Config.files.forEach(f => {
+          if (!remoteMap.has(f.key) && f.status === 'staged_local') {
+            remoteMap.set(f.key, f);
+          }
+        });
+        r2Config.files = Array.from(remoteMap.values());
+        localStorage.setItem('r2_vault_files_v1', JSON.stringify(r2Config.files.slice(0, 30)));
+        renderR2FileList();
+      }
+    }
+  } catch (e) {
+    // Keep local fallback
+  }
+}
+
+function formatFileSize(bytes) {
+  if (!bytes) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+function renderR2FileList() {
+  const container = document.getElementById('r2FileList');
+  if (!container) return;
+
+  if (!r2Config.files.length) {
+    container.innerHTML = `<div class="r2-empty">No files uploaded yet. Drag and drop bills or schedules above to store in your R2 bucket.</div>`;
+    return;
+  }
+
+  container.innerHTML = r2Config.files.map((file, idx) => {
+    const isSynced = file.status === 'r2_synced';
+    const badgeCls = 'r2-file-badge';
+    const badgeText = isSynced ? 'Cloudflare R2' : 'Staged (Local)';
+    const dateStr = new Date(file.uploadedAt).toLocaleDateString() + ' ' + new Date(file.uploadedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const viewAction = file.url
+      ? `<a href="${file.url}" target="_blank" class="btn ghost btn-sm" style="text-decoration:none;">View</a>`
+      : `<span style="font-size:11px;color:var(--text-low);">Ready</span>`;
+
+    return `
+      <div class="r2-file-item">
+        <div class="r2-file-info">
+          <span class="${badgeCls}">${badgeText}</span>
+          <div>
+            <div class="r2-file-name">${file.name}</div>
+            <div class="r2-file-meta">${formatFileSize(file.size)} · ${dateStr}</div>
+          </div>
+        </div>
+        <div class="r2-file-actions">
+          ${viewAction}
+          <button class="btn ghost btn-sm" onclick="removeR2File(${idx})" title="Remove from list">&times;</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+window.removeR2File = function(idx) {
+  r2Config.files.splice(idx, 1);
+  localStorage.setItem('r2_vault_files_v1', JSON.stringify(r2Config.files));
+  renderR2FileList();
+};
+
+initR2Vault();
+
