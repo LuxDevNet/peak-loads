@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>SDG&amp;E TOU Optimizer · Latest 2.0</title>
+<title>SDG&amp;E TOU Optimizer · v2.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&f[]=jetbrains-mono@400,600&display=swap" rel="stylesheet">
@@ -86,24 +86,13 @@
     color: var(--text-mid);
     font-size: 12px;
   }
-  .top-back-btn {
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 6px 14px;
-    border-radius: 8px;
-    font-size: 12px;
-    font-weight: 600;
-    text-decoration: none;
-    transition: all 0.15s ease;
-    white-space: nowrap;
-    display: inline-flex;
+  .top-bar-right {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-mid);
+    display: flex;
     align-items: center;
-    gap: 6px;
-  }
-  .top-back-btn:hover {
-    background: var(--surface);
-    border-color: var(--text-mid);
+    gap: 10px;
   }
 
   .container {
@@ -1532,7 +1521,7 @@
   }
   .tt.show { opacity: 1; }
 
-  /* Footer */
+  /* === FOOTER WITH 'v2.0' AND 'last updated at:' === */
   .footer {
     margin-top: 60px;
     padding-top: 24px;
@@ -1541,13 +1530,97 @@
     font-size: 12px;
     line-height: 1.7;
   }
-  .footer a { color: var(--text-mid); text-decoration: none; border-bottom: 1px dotted var(--text-low); }
-  .footer a:hover { color: var(--accent); border-color: var(--accent); }
+  .footer-status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid rgba(42, 42, 49, 0.6);
+  }
+  .footer-time-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-mid);
+  }
+  .footer-time-text span {
+    color: var(--text);
+    font-weight: 600;
+  }
+  .v2-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 800;
+    background: rgba(79, 152, 163, 0.2);
+    border: 1px solid rgba(79, 152, 163, 0.45);
+    color: var(--accent);
+    padding: 3px 9px;
+    border-radius: 999px;
+    letter-spacing: 0.06em;
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+  }
+
+  /* === FLOATING FOOTER STATUS BAR (STICKS ON SCROLL) === */
+  .floating-status-bar {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(19, 19, 22, 0.94);
+    border: 1px solid var(--border-hi);
+    border-radius: 999px;
+    padding: 7px 14px 7px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 999;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    max-width: calc(100vw - 32px);
+    font-size: 12px;
+    animation: statusFadeIn 0.35s ease-out;
+  }
+  @keyframes statusFadeIn {
+    from { opacity: 0; transform: translate(-50%, 15px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+  }
+  .floating-status-text {
+    color: var(--text-mid);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .floating-status-text span {
+    color: var(--text);
+    font-weight: 600;
+  }
+  .floating-status-close {
+    background: transparent;
+    border: 0;
+    color: var(--text-low);
+    font-size: 17px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 2px 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .floating-status-close:hover { color: var(--text); }
 
   @media (max-width: 768px) {
     .container { padding: 24px 16px 60px; }
     .floating-left-panel { left: 10px; width: calc(100vw - 20px); height: 55vh; max-height: 55vh; }
     .floating-ai-widget { right: 10px; bottom: 10px; width: calc(100vw - 20px); height: 480px; }
+    .floating-status-bar { border-radius: 14px; padding: 10px 14px; gap: 8px; flex-wrap: wrap; justify-content: center; }
   }
 </style>
 </head>
@@ -1556,13 +1629,12 @@
 <!-- TOP NAV / BANNER -->
 <header class="top-bar">
   <div class="top-bar-left">
-    <span class="top-badge">⚡ Latest 2.0 Layout</span>
+    <span class="top-badge">⚡ TOU Optimizer v2.0</span>
     <span class="top-bar-desc">50% Viewport Floating Impact &amp; Vault Panel + Liquid Glass GLM-5.3 AI Copilot</span>
   </div>
-  <a href="index.html" class="top-back-btn">
-    <span>&larr;</span>
-    <span>Standard View (v1)</span>
-  </a>
+  <div class="top-bar-right">
+    <span>last updated at: <span id="topLastUpdated">Sep 24, 2026 · 11:20 PM PDT</span></span>
+  </div>
 </header>
 
 <div class="container">
@@ -1789,7 +1861,7 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--accent);"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
         Looking for Monthly Impact (05) &amp; Cloudflare R2 Storage (06)?
       </h3>
-      <p>They have been promoted into your <strong>50% Floating Left Panel</strong> so your live dollar impact and R2 file uploads stay in view while tuning schedules. Open or collapse it with the left tab anytime.</p>
+      <p>They are active in your <strong>50% Floating Left Panel</strong> so your live dollar impact and R2 file uploads stay in view while tuning schedules. Open or collapse it with the left tab anytime.</p>
     </div>
     <button class="btn ghost btn-sm" onclick="document.getElementById('floatingLeftPanel').classList.remove('collapsed');">
       Focus Left Panel &larr;
@@ -1798,9 +1870,18 @@
 
   <!-- FOOTER -->
   <footer class="footer">
-    <strong style="color:var(--text-mid)">Source:</strong> SDG&amp;E Schedule TOU-DR1, EV-TOU-5, and TOU-DR2 residential tariffs. Rates effective 2026. On-Peak is 4–9 p.m. daily. Super Off-Peak weekday hours: 12 a.m.–6 a.m. and 10 a.m.–2 p.m. (expanded year-round as of May 1, 2025/2026).<br>
-    References: <a href="https://www.sdge.com/super-off-peak-residential" target="_blank">SDG&amp;E Extended Super Off-Peak</a> · <a href="https://www.sdge.com/residential/pricing-plans" target="_blank">Residential Pricing Plans</a> · <a href="https://www.sdge.com/rates-and-regulations/current-and-effective-tariffs" target="_blank">Current Effective Tariffs</a> · <a href="https://sdcommunitypower.org" target="_blank">San Diego Community Power (SDCP)</a>.<br>
-    Savings estimates are illustrative; actual savings depend on baseline allocation, CARE eligibility, and household kWh usage.
+    <div class="footer-status-bar">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span class="v2-badge">v2.0</span>
+        <span class="footer-time-text">last updated at: <span id="footerUpdatedAt">September 24, 2026 · 11:20 PM PDT</span></span>
+      </div>
+      <div style="font-size:11px;color:var(--text-low);font-family:'JetBrains Mono',monospace;">
+        SDG&amp;E Schedule TOU-DR1 · EV-TOU-5 · TOU-DR2 · 2026 Tariffs
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--text-low);line-height:1.6;">
+      Source: SDG&amp;E effective tariffs. On-Peak 4–9 p.m. daily. Super Off-Peak weekday hours: 12 a.m.–6 a.m. &amp; 10 a.m.–2 p.m. References: <a href="https://www.sdge.com/super-off-peak-residential" target="_blank">SDG&amp;E Extended Super Off-Peak</a> · <a href="https://www.sdge.com/rates-and-regulations/current-and-effective-tariffs" target="_blank">Current Effective Tariffs</a> · <a href="https://sdcommunitypower.org" target="_blank">SDCP</a>.
+    </div>
   </footer>
 </div>
 
@@ -1823,7 +1904,7 @@
 
   <!-- SECTION 05: Monthly Impact (takes up most of the panel) -->
   <div class="flp-savings-wrap" id="flpSavingsContainer">
-    <!-- Populated dynamically by renderFloatingPanelSavings() in latest.js -->
+    <!-- Populated dynamically by renderFloatingPanelSavings() in app.js -->
   </div>
 
   <!-- SECTION 06: Cloudflare R2 Upload & File Vault (at the bottom) -->
@@ -1851,7 +1932,7 @@
 
     <!-- Uploaded file items -->
     <div class="flp-file-list" id="flpFileList">
-      <!-- Populated dynamically by renderR2FileList() in latest.js -->
+      <!-- Populated dynamically by renderR2FileList() in app.js -->
     </div>
   </div>
 </aside>
@@ -1891,7 +1972,7 @@
 
   <!-- Messages scroll area -->
   <div class="ai-chat-body" id="aiChatBody">
-    <!-- Populated dynamically by renderAIMessages() in latest.js -->
+    <!-- Populated dynamically by renderAIMessages() in app.js -->
   </div>
 
   <!-- Input bar -->
@@ -2000,7 +2081,30 @@
   </div>
 </div>
 
+<!-- FLOATING FOOTER STATUS BAR (STICKS ON SCROLL) -->
+<aside class="floating-status-bar" id="floatingStatusBar">
+  <span class="v2-badge">v2.0</span>
+  <span class="floating-status-text">last updated at: <span id="floatingTimestamp">Sep 24, 2026 · 11:20 PM PDT</span></span>
+  <button class="floating-status-close" id="statusCloseBtn" aria-label="Dismiss">&times;</button>
+</aside>
+
 <div class="tt" id="tooltip"></div>
+
+<script>
+  (function() {
+    const bar = document.getElementById('floatingStatusBar');
+    const closeBtn = document.getElementById('statusCloseBtn');
+    if (sessionStorage.getItem('dismissed_v2_status') === 'true') {
+      if (bar) bar.style.display = 'none';
+    }
+    if (closeBtn && bar) {
+      closeBtn.addEventListener('click', function() {
+        bar.style.display = 'none';
+        sessionStorage.setItem('dismissed_v2_status', 'true');
+      });
+    }
+  })();
+</script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="latest.js"></script>

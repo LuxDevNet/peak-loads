@@ -1,5 +1,5 @@
-// SDG&E TOU Optimizer & Live Rates
-// Real-time time-of-use tracking, dynamic pricing, and appliance load optimization.
+// SDG&E TOU Optimizer v2 - Latest Version
+// Features: Floating 50% Left Panel (Monthly Impact & R2 Vault) + Floating Liquid Glass AI Chat (Cloudflare AI Gateway / GLM-5.3)
 
 const DEFAULT_PLANS = {
   'tou-dr1': {
@@ -37,7 +37,6 @@ const DEFAULT_PLANS = {
   }
 };
 
-// === APPLIANCES ===
 const APPLIANCES = [
   {
     id: 'ac',
@@ -132,50 +131,38 @@ const meta = {
   peak:  { name: 'On-Peak',         cls: 'peak',  color: 'var(--peak)' }
 };
 
-// === STORAGE & CUSTOM RATES ===
 function loadCustomRates() {
   try {
     const raw = localStorage.getItem('sdge_rates_custom_v1');
     if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.warn('Failed reading custom rates from localStorage', e);
-  }
+  } catch (e) {}
   return null;
 }
 
 function saveCustomRates(customRates) {
   try {
     localStorage.setItem('sdge_rates_custom_v1', JSON.stringify(customRates));
-  } catch (e) {
-    console.warn('Failed saving custom rates to localStorage', e);
-  }
+  } catch (e) {}
 }
 
-// === HOLIDAYS & CALENDAR ===
 function isSDGEHoliday(d) {
   const m = d.getMonth();
   const date = d.getDate();
-  const dow = d.getDay(); // 0 Sun, 1 Mon ...
-
-  // Fixed holidays
-  if (m === 0 && date === 1) return true; // New Year's Day
-  if (m === 6 && date === 4) return true; // Independence Day
-  if (m === 10 && date === 11) return true; // Veterans Day
-  if (m === 11 && date === 25) return true; // Christmas Day
-
-  // Floating holidays
-  if (m === 1 && dow === 1 && date >= 15 && date <= 21) return true; // Presidents' Day (3rd Mon in Feb)
-  if (m === 4 && dow === 1 && date >= 25) return true; // Memorial Day (last Mon in May)
-  if (m === 8 && dow === 1 && date <= 7) return true; // Labor Day (1st Mon in Sep)
-  if (m === 10 && dow === 4 && date >= 22 && date <= 28) return true; // Thanksgiving (4th Thu in Nov)
-
+  const dow = d.getDay();
+  if (m === 0 && date === 1) return true;
+  if (m === 6 && date === 4) return true;
+  if (m === 10 && date === 11) return true;
+  if (m === 11 && date === 25) return true;
+  if (m === 1 && dow === 1 && date >= 15 && date <= 21) return true;
+  if (m === 4 && dow === 1 && date >= 25) return true;
+  if (m === 8 && dow === 1 && date <= 7) return true;
+  if (m === 10 && dow === 4 && date >= 22 && date <= 28) return true;
   return false;
 }
 
 function detectLiveCalendar() {
   const now = new Date();
   const m = now.getMonth();
-  // Summer: June 1 to October 31 (months 5,6,7,8,9)
   const season = (m >= 5 && m <= 9) ? 'summer' : 'winter';
   const dow = now.getDay();
   const isWeekendOrHoliday = (dow === 0 || dow === 6 || isSDGEHoliday(now));
@@ -183,7 +170,6 @@ function detectLiveCalendar() {
   return { season, day, date: now };
 }
 
-// === APPLICATION STATE ===
 const liveInit = detectLiveCalendar();
 let state = {
   plan: 'tou-dr1',
@@ -214,29 +200,25 @@ function getCurrentRates() {
   return plan.rates[state.season];
 }
 
-// Determines the period ('super', 'off', 'peak') for an hour (0..23)
 function periodFor(hour, day, planId = state.plan) {
   if (hour >= 16 && hour < 21) return 'peak';
 
   if (planId === 'tou-dr2') {
-    return 'off'; // TOU-DR2 is a 2-period plan (no super off-peak)
+    return 'off';
   }
 
-  // TOU-DR1 and EV-TOU-5:
   if (day === 'weekday') {
     if (hour >= 0 && hour < 6) return 'super';
     if (hour >= 6 && hour < 10) return 'off';
-    if (hour >= 10 && hour < 14) return 'super'; // Extended daytime super off-peak
+    if (hour >= 10 && hour < 14) return 'super';
     if (hour >= 14 && hour < 16) return 'off';
     return 'off';
   } else {
-    // Weekend / Holiday: midnight to 2 p.m. is super off-peak
     if (hour >= 0 && hour < 14) return 'super';
     return 'off';
   }
 }
 
-// === HOUR UTILITIES ===
 function hoursInRange(start, end) {
   const hours = [];
   if (start === end) return hours;
@@ -256,7 +238,6 @@ function unavailableHours() {
   return blocked;
 }
 
-// Returns the resolved set of hours for an appliance given user blackouts
 function resolveAppliance(app) {
   const blockThisApp = app.needsAttended || !state.allowAuto;
   const unavailable = (state.workingHoursOn && blockThisApp) ? unavailableHours() : new Set();
@@ -288,14 +269,12 @@ function resolveAppliance(app) {
   };
 }
 
-// === LIVE RATE STATUS ENGINE ===
 function calculateLiveStatus() {
   const now = new Date();
   const nowHour = now.getHours();
   const nowMin = now.getMinutes();
   const nowSec = now.getSeconds();
 
-  // If live auto-sync is on, sync season & day
   if (state.autoSync) {
     const liveCal = detectLiveCalendar();
     if (state.season !== liveCal.season || state.day !== liveCal.day) {
@@ -310,7 +289,6 @@ function calculateLiveStatus() {
   const currentPeriod = periodFor(nowHour, state.day, state.plan);
   const currentRateVal = rates[currentPeriod];
 
-  // Calculate countdown to next period transition
   let minutesToNext = 0;
   let nextPeriod = currentPeriod;
   let transitionTime = '';
@@ -336,7 +314,6 @@ function calculateLiveStatus() {
     ? `${hoursRem}h ${minsRem}m`
     : `${minsRem}m ${String(secsRem).padStart(2, '0')}s`;
 
-  // Spread
   const minRate = rates.super || rates.off;
   const spreadPct = Math.round(((rates.peak - minRate) / minRate) * 100);
 
@@ -359,12 +336,10 @@ function updateLiveHUD() {
   const plan = getActivePlan();
   const rates = getCurrentRates();
 
-  // Live HUD container accent color
   const hud = document.getElementById('liveHud');
   const periodColor = meta[status.currentPeriod].color;
   if (hud) hud.style.setProperty('--current-color', periodColor);
 
-  // Badge text
   const badgeText = document.getElementById('liveBadgeText');
   if (badgeText) {
     const badgeNames = {
@@ -375,14 +350,12 @@ function updateLiveHUD() {
     badgeText.textContent = badgeNames[status.currentPeriod];
   }
 
-  // Plan tag
   const planTag = document.getElementById('livePlanTag');
   if (planTag) {
     const isCustom = state.customRates && state.customRates[state.plan];
     planTag.textContent = `${plan.name}${isCustom ? ' (Custom Rates)' : ''}`;
   }
 
-  // Live clock
   const clockEl = document.getElementById('liveClockTime');
   if (clockEl) {
     const timeStr = status.now.toLocaleTimeString('en-US', {
@@ -395,20 +368,17 @@ function updateLiveHUD() {
     clockEl.textContent = `${timeStr} · ${tzStr}`;
   }
 
-  // Current rate value
   const curRateEl = document.getElementById('liveCurrentRate');
   if (curRateEl) {
     const cents = (status.currentRateVal * 100).toFixed(1);
     curRateEl.innerHTML = `<span class="cents">${cents}</span><span class="unit">¢/kWh</span>`;
   }
 
-  // Current period label
   const curPeriodLabel = document.getElementById('liveCurrentPeriodLabel');
   if (curPeriodLabel) {
     curPeriodLabel.innerHTML = `<strong>${meta[status.currentPeriod].name}</strong> · $${status.currentRateVal.toFixed(3)}/kWh`;
   }
 
-  // Countdown value & next label
   const countEl = document.getElementById('liveCountdown');
   if (countEl) {
     countEl.innerHTML = `${status.countdownText}<span class="unit">rem</span>`;
@@ -420,25 +390,22 @@ function updateLiveHUD() {
     nextLabel.innerHTML = `Next: <strong>${meta[status.nextPeriod].name}</strong> ($${nextRate.toFixed(3)}) at ${status.transitionTime}`;
   }
 
-  // Spread
   const spreadEl = document.getElementById('liveSpreadVal');
   if (spreadEl) {
     spreadEl.innerHTML = `+${status.spreadPct}<span class="unit">%</span>`;
   }
 
-  // Actionable tip
   const tipEl = document.getElementById('liveTipText');
   if (tipEl) {
     if (status.currentPeriod === 'peak') {
-      tipEl.innerHTML = `<strong>Peak rates in effect:</strong> Delay high-draw appliances (dryer, dishwasher, EV charging) until <strong>${status.transitionTime}</strong> to save ${status.spreadPct}%.`;
+      tipEl.innerHTML = `<strong>Peak rates in effect:</strong> Delay high-draw appliances until <strong>${status.transitionTime}</strong> to save ${status.spreadPct}%.`;
     } else if (status.currentPeriod === 'super') {
-      tipEl.innerHTML = `<strong>Super Off-Peak active:</strong> Lowest electricity costs of the day! Great time for EV charging, pool filtration, running the dryer, or pre-cooling.`;
+      tipEl.innerHTML = `<strong>Super Off-Peak active:</strong> Lowest electricity costs of the day! Great time for EV charging, pool filtration, and laundry.`;
     } else {
-      tipEl.innerHTML = `<strong>Off-Peak shoulder period:</strong> Standard household usage is fine. For maximum savings, schedule heavy loads for Super Off-Peak (${plan.hasSuper ? (state.day === 'weekday' ? '12-6 a.m. & 10 a.m.-2 p.m.' : '12-2 p.m.') : 'off-peak'}).`;
+      tipEl.innerHTML = `<strong>Off-Peak shoulder period:</strong> Standard household usage is fine. Shift high-draw loads to Super Off-Peak.`;
     }
   }
 
-  // Live instant running costs for selected appliances
   const costsWrap = document.getElementById('liveInstantCosts');
   if (costsWrap) {
     const selected = APPLIANCES.filter(a => state.selected.has(a.id));
@@ -458,14 +425,12 @@ function updateLiveHUD() {
     }
   }
 
-  // Update needle on timeline
   updateTimelineNeedle(status);
 }
 
 function updateTimelineNeedle(status) {
   const minutePercent = ((status.nowHour * 60 + status.nowMin + status.nowSec / 60) / 1440) * 100;
 
-  // Needles inside bars
   document.querySelectorAll('.tl-bar').forEach(bar => {
     let needle = bar.querySelector('.tl-now-needle');
     if (!needle) {
@@ -476,7 +441,6 @@ function updateTimelineNeedle(status) {
     needle.style.left = `${minutePercent}%`;
   });
 
-  // Needle indicator on ticks
   const ticks = document.getElementById('axisTicks');
   if (ticks) {
     let axisMarker = ticks.querySelector('.tl-axis-now-indicator');
@@ -490,13 +454,12 @@ function updateTimelineNeedle(status) {
   }
 }
 
-// === RENDER FUNCTIONS ===
 function render() {
   renderRates();
   renderSelector();
   renderTimeline();
   renderAppliances();
-  renderSavings();
+  renderFloatingPanelSavings();
   renderAxis();
   updateLiveHUD();
 }
@@ -506,6 +469,7 @@ function renderRates() {
   const plan = getActivePlan();
   const currentPeriod = periodFor(new Date().getHours(), state.day, state.plan);
   const grid = document.getElementById('rateGrid');
+  if (!grid) return;
 
   let items = [];
   if (plan.hasSuper) {
@@ -516,7 +480,6 @@ function renderRates() {
       { key: 'spread',c: 'var(--text)',  label: 'Peak vs. Super', val: null,    pct: ((r.peak - r.super) / r.super) * 100, hours: 'Peak premium over cheapest window' }
     ];
   } else {
-    // 2-tier plan (TOU-DR2)
     items = [
       { key: 'off',   c: 'var(--off)',   label: 'Off-Peak',       val: r.off,   hours: '19 hours daily (all hours outside 4-9 p.m.)' },
       { key: 'peak',  c: 'var(--peak)',  label: 'On-Peak',        val: r.peak,  hours: 'Every day · 4-9 p.m.' },
@@ -550,6 +513,7 @@ function renderRates() {
 
 function renderSelector() {
   const grid = document.getElementById('selectorGrid');
+  if (!grid) return;
   grid.innerHTML = APPLIANCES.map(a => `
     <div class="chip ${state.selected.has(a.id) ? 'active' : ''}" data-id="${a.id}">
       <div class="chip-check"></div>
@@ -570,6 +534,7 @@ function renderSelector() {
 
 function renderAxis() {
   const axis = document.getElementById('axisTicks');
+  if (!axis) return;
   let html = '';
   for (let h = 0; h < 24; h++) {
     const lab = (h % 3 === 0) ? formatHourShort(h) : '';
@@ -607,6 +572,7 @@ function formatRange(hours) {
 
 function renderTimeline() {
   const tl = document.getElementById('timeline');
+  if (!tl) return;
   const selected = APPLIANCES.filter(a => state.selected.has(a.id));
   if (!selected.length) {
     tl.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--text-low);font-size:14px;">Select at least one appliance above.</div>`;
@@ -641,8 +607,8 @@ function renderTimeline() {
 
             const price = rates[p].toFixed(3);
             let label = `${app.name} · ${formatHour12(h)} · $${price}/kWh`;
-            if (isUnav) label += ' · UNAVAILABLE (your schedule)';
-            else if (isAvoid) label += ' · AVOID (peak / high wear)';
+            if (isUnav) label += ' · UNAVAILABLE';
+            else if (isAvoid) label += ' · AVOID';
             else if (isRec) label += ' · RECOMMENDED';
             if (isCurrent) label += ' · [RIGHT NOW]';
 
@@ -658,6 +624,7 @@ function renderTimeline() {
 
 function renderAppliances() {
   const grid = document.getElementById('applianceGrid');
+  if (!grid) return;
   const selected = APPLIANCES.filter(a => state.selected.has(a.id));
   if (!selected.length) {
     grid.innerHTML = `<div style="grid-column:1/-1;padding:48px;text-align:center;color:var(--text-low);">No appliances selected.</div>`;
@@ -675,7 +642,6 @@ function renderAppliances() {
     const savings = estimateApplianceSavings(app);
     const noWindow = rec.length === 0;
 
-    // Determine current live status for this appliance
     let statusText = 'OK TO RUN';
     let statusCls = 'status-mid';
     if (resolved.unavailable.has(currentHour)) {
@@ -713,7 +679,7 @@ function renderAppliances() {
             <div class="win-tag">${resolved.fallback ? 'Fallback' : 'Best'}</div>
             <div class="win-body">
               <div class="win-time">${noWindow ? 'No safe window' : formatRange(rec)}</div>
-              <div class="win-note">${noWindow ? 'Your blackouts cover all safe hours. Try shifting your schedule or running this load on a day off.' : (resolved.fallback ? 'Your ideal window is blacked out. Best available alternative shown - still cheaper than peak.' : app.notes.best)}</div>
+              <div class="win-note">${noWindow ? 'Your blackouts cover all safe hours. Try shifting your schedule or running this load on a day off.' : (resolved.fallback ? 'Your ideal window is blacked out. Best available alternative shown.' : app.notes.best)}</div>
             </div>
           </div>
           <div class="win mid">
@@ -740,18 +706,19 @@ function estimateApplianceSavings(app) {
   const r = getCurrentRates();
   const month = app.estDailyKwh * 30;
   const superRate = r.super || r.off;
-  // Uncontrolled baseline: 30% peak, 50% off, 20% super
   const uncontrolled = month * (0.30 * r.peak + 0.50 * r.off + 0.20 * superRate);
-  // Optimized schedule: 85% super, 15% off, 0% peak
   const optimized = month * (0.85 * superRate + 0.15 * r.off);
   return { uncontrolled, optimized, delta: Math.max(0, uncontrolled - optimized) };
 }
 
-function renderSavings() {
-  const wrap = document.getElementById('savings');
+// === FLOATING LEFT PANEL: MONTHLY IMPACT RENDERING ===
+function renderFloatingPanelSavings() {
+  const wrap = document.getElementById('flpSavingsContainer');
+  if (!wrap) return;
+
   const selected = APPLIANCES.filter(a => state.selected.has(a.id));
   if (!selected.length) {
-    wrap.innerHTML = `<div style="text-align:center;padding:48px;color:var(--text-low);">Select appliances above to see savings.</div>`;
+    wrap.innerHTML = `<div style="text-align:center;padding:24px 12px;color:var(--text-low);font-size:12px;">Select appliances to calculate monthly savings.</div>`;
     return;
   }
 
@@ -762,10 +729,10 @@ function renderSavings() {
     totalOpt += s.optimized;
     return `
       <tr>
-        <td class="name">${app.name}</td>
-        <td class="r">$${s.uncontrolled.toFixed(2)}</td>
-        <td class="r">$${s.optimized.toFixed(2)}</td>
-        <td class="r d">-$${s.delta.toFixed(2)}</td>
+        <td style="font-weight:600;color:var(--text);">${app.name}</td>
+        <td class="r" style="color:var(--text-mid);">$${s.uncontrolled.toFixed(0)}</td>
+        <td class="r" style="color:var(--text);">$${s.optimized.toFixed(0)}</td>
+        <td class="r d">-$${s.delta.toFixed(0)}</td>
       </tr>
     `;
   }).join('');
@@ -773,24 +740,23 @@ function renderSavings() {
   const plan = getActivePlan();
 
   wrap.innerHTML = `
-    <div class="savings-hero">
+    <div class="flp-impact-hero">
       <div>
-        <div class="savings-num"><span class="sm">-$</span>${Math.round(totalDelta)}</div>
-        <div class="savings-label">Per month · ${plan.shortName} · ${plan.rates[state.season].label}</div>
+        <div class="flp-impact-num">-$${Math.round(totalDelta)}<span style="font-size:0.4em;color:var(--text-mid);margin-left:4px;">/mo</span></div>
+        <div class="flp-impact-sub">Monthly Impact · ${plan.shortName}</div>
       </div>
-      <div class="savings-side">
-        <div class="row"><span class="k">Uncontrolled</span><span class="v">$${totalUn.toFixed(0)}</span></div>
-        <div class="row"><span class="k">Optimized</span><span class="v">$${totalOpt.toFixed(0)}</span></div>
-        <div class="row"><span class="k">Annualized</span><span class="v" style="color:var(--super);">-$${(totalDelta * 12).toFixed(0)}</span></div>
+      <div style="text-align:right;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:var(--super);">-$${(totalDelta * 12).toFixed(0)}/yr</div>
+        <div style="font-size:10px;color:var(--text-low);font-family:'JetBrains Mono',monospace;">ANNUALIZED</div>
       </div>
     </div>
-    <table class="savings-table">
+    <table class="flp-savings-table">
       <thead>
         <tr>
           <th>Appliance</th>
-          <th class="r">Uncontrolled</th>
-          <th class="r">Optimized</th>
-          <th class="r">Monthly Savings</th>
+          <th class="r">Base</th>
+          <th class="r">Opt</th>
+          <th class="r">Save</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -798,9 +764,10 @@ function renderSavings() {
   `;
 }
 
-// === TOOLTIP ===
+// Tooltip
 const tt = document.getElementById('tooltip');
 function attachTooltip(el) {
+  if (!tt) return;
   el.addEventListener('mouseenter', () => { tt.textContent = el.dataset.tt; tt.classList.add('show'); });
   el.addEventListener('mousemove', e => {
     tt.style.left = (e.clientX + 14) + 'px';
@@ -809,7 +776,6 @@ function attachTooltip(el) {
   el.addEventListener('mouseleave', () => tt.classList.remove('show'));
 }
 
-// === CONTROLS & INTERACTION ===
 function syncToggleUI() {
   document.querySelectorAll('#planToggle button').forEach(b => {
     b.classList.toggle('active', b.dataset.plan === state.plan);
@@ -840,7 +806,7 @@ function syncToggleUI() {
   }
 }
 
-// Plan selection
+// Controls listeners
 document.querySelectorAll('#planToggle button').forEach(btn => {
   btn.addEventListener('click', () => {
     state.plan = btn.dataset.plan;
@@ -849,7 +815,6 @@ document.querySelectorAll('#planToggle button').forEach(btn => {
   });
 });
 
-// Season toggle
 document.querySelectorAll('#seasonToggle button').forEach(btn => {
   btn.addEventListener('click', () => {
     state.season = btn.dataset.season;
@@ -859,7 +824,6 @@ document.querySelectorAll('#seasonToggle button').forEach(btn => {
   });
 });
 
-// Day toggle
 document.querySelectorAll('#dayToggle button').forEach(btn => {
   btn.addEventListener('click', () => {
     state.day = btn.dataset.day;
@@ -869,7 +833,6 @@ document.querySelectorAll('#dayToggle button').forEach(btn => {
   });
 });
 
-// Live Sync button
 const syncLiveBtn = document.getElementById('syncLiveBtn');
 if (syncLiveBtn) {
   syncLiveBtn.addEventListener('click', () => {
@@ -882,7 +845,6 @@ if (syncLiveBtn) {
   });
 }
 
-// Quick select buttons
 document.querySelectorAll('.quick button[data-quick]').forEach(btn => {
   btn.addEventListener('click', () => {
     if (btn.dataset.quick === 'all') state.selected = new Set(APPLIANCES.map(a => a.id));
@@ -891,25 +853,26 @@ document.querySelectorAll('.quick button[data-quick]').forEach(btn => {
   });
 });
 
-// Working hours toggle
-document.getElementById('whToggle').addEventListener('click', () => {
-  state.workingHoursOn = !state.workingHoursOn;
-  const el = document.getElementById('whToggle');
-  el.classList.toggle('on', state.workingHoursOn);
-  document.getElementById('whState').textContent = state.workingHoursOn ? 'Active' : 'Off';
-  render();
-});
+const whToggle = document.getElementById('whToggle');
+if (whToggle) {
+  whToggle.addEventListener('click', () => {
+    state.workingHoursOn = !state.workingHoursOn;
+    whToggle.classList.toggle('on', state.workingHoursOn);
+    document.getElementById('whState').textContent = state.workingHoursOn ? 'Active' : 'Off';
+    render();
+  });
+}
 
-// Auto-loads toggle
-document.getElementById('autoToggle').addEventListener('click', () => {
-  state.allowAuto = !state.allowAuto;
-  const el = document.getElementById('autoToggle');
-  el.classList.toggle('on', state.allowAuto);
-  document.getElementById('autoState').textContent = state.allowAuto ? 'Allow' : 'Block';
-  render();
-});
+const autoToggle = document.getElementById('autoToggle');
+if (autoToggle) {
+  autoToggle.addEventListener('click', () => {
+    state.allowAuto = !state.allowAuto;
+    autoToggle.classList.toggle('on', state.allowAuto);
+    document.getElementById('autoState').textContent = state.allowAuto ? 'Allow' : 'Block';
+    render();
+  });
+}
 
-// Time inputs
 function parseTime(v) {
   const [h] = v.split(':');
   return parseInt(h, 10);
@@ -927,7 +890,6 @@ function parseTime(v) {
   }
 });
 
-// Schedule presets
 document.querySelectorAll('.quick button[data-preset]').forEach(btn => {
   btn.addEventListener('click', () => {
     const preset = btn.dataset.preset;
@@ -951,258 +913,28 @@ document.querySelectorAll('.quick button[data-preset]').forEach(btn => {
   });
 });
 
-// === RATE CUSTOMIZER MODAL ===
-const rateModal = document.getElementById('rateModal');
-const editRatesBtn = document.getElementById('editRatesBtn');
-const modalCloseBtn = document.getElementById('modalCloseBtn');
-const modalCancelBtn = document.getElementById('modalCancelBtn');
-const modalSaveBtn = document.getElementById('modalSaveBtn');
-const modalResetBtn = document.getElementById('modalResetBtn');
+// === FLOATING LEFT PANEL TOGGLE ===
+function initFloatingLeftPanel() {
+  const panel = document.getElementById('floatingLeftPanel');
+  const toggleBtn = document.getElementById('flpToggleTab');
+  const minimizeBtn = document.getElementById('flpMinimizeBtn');
 
-function openRateModal() {
-  const plan = getActivePlan();
-  document.getElementById('modalPlanTitle').textContent = `Customize Rates · ${plan.name}`;
-
-  const superFields = [document.getElementById('fieldSummerSuper'), document.getElementById('fieldWinterSuper')];
-  superFields.forEach(f => {
-    if (f) f.style.display = plan.hasSuper ? 'flex' : 'none';
-  });
-
-  const r = plan.rates;
-  document.getElementById('rateSummerSuper').value = r.summer.super;
-  document.getElementById('rateSummerOff').value   = r.summer.off;
-  document.getElementById('rateSummerPeak').value  = r.summer.peak;
-
-  document.getElementById('rateWinterSuper').value = r.winter.super;
-  document.getElementById('rateWinterOff').value   = r.winter.off;
-  document.getElementById('rateWinterPeak').value  = r.winter.peak;
-
-  rateModal.classList.add('open');
-}
-
-function closeRateModal() {
-  rateModal.classList.remove('open');
-}
-
-if (editRatesBtn) editRatesBtn.addEventListener('click', openRateModal);
-if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeRateModal);
-if (modalCancelBtn) modalCancelBtn.addEventListener('click', closeRateModal);
-if (rateModal) {
-  rateModal.addEventListener('click', e => {
-    if (e.target === rateModal) closeRateModal();
-  });
-}
-
-if (modalSaveBtn) {
-  modalSaveBtn.addEventListener('click', () => {
-    const custom = state.customRates ? { ...state.customRates } : {};
-    const plan = getActivePlan();
-
-    const sumSuper = parseFloat(document.getElementById('rateSummerSuper').value) || plan.rates.summer.super;
-    const sumOff   = parseFloat(document.getElementById('rateSummerOff').value) || plan.rates.summer.off;
-    const sumPeak  = parseFloat(document.getElementById('rateSummerPeak').value) || plan.rates.summer.peak;
-
-    const winSuper = parseFloat(document.getElementById('rateWinterSuper').value) || plan.rates.winter.super;
-    const winOff   = parseFloat(document.getElementById('rateWinterOff').value) || plan.rates.winter.off;
-    const winPeak  = parseFloat(document.getElementById('rateWinterPeak').value) || plan.rates.winter.peak;
-
-    custom[state.plan] = {
-      summer: { super: sumSuper, off: sumOff, peak: sumPeak, label: DEFAULT_PLANS[state.plan].rates.summer.label },
-      winter: { super: winSuper, off: winOff, peak: winPeak, label: DEFAULT_PLANS[state.plan].rates.winter.label }
-    };
-
-    state.customRates = custom;
-    saveCustomRates(custom);
-    closeRateModal();
-    render();
-  });
-}
-
-if (modalResetBtn) {
-  modalResetBtn.addEventListener('click', () => {
-    if (state.customRates && state.customRates[state.plan]) {
-      delete state.customRates[state.plan];
-      if (Object.keys(state.customRates).length === 0) state.customRates = null;
-      saveCustomRates(state.customRates);
-    }
-    closeRateModal();
-    render();
-  });
-}
-
-// === PDF DOWNLOAD ===
-document.getElementById('downloadBtn').addEventListener('click', generatePDF);
-
-function generatePDF() {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit: 'pt', format: 'letter' });
-  const W = 612, H = 792, M = 48;
-  let y = M;
-
-  const SUPER = [109, 170, 69];
-  const OFF   = [232, 175, 52];
-  const PEAK  = [221, 105, 116];
-  const DARK  = [11, 11, 12];
-  const TEXT  = [40, 40, 45];
-  const DIM   = [120, 120, 128];
-
-  const plan = getActivePlan();
-  const r = getCurrentRates();
-
-  // Hero header
-  doc.setFillColor(...DARK);
-  doc.rect(0, 0, W, 110, 'F');
-  doc.setTextColor(245, 244, 240);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(28);
-  doc.text('Your TOU schedule', M, 50);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
-  doc.setTextColor(168, 167, 163);
-  doc.text(`${plan.name}  ·  ${r.label}  ·  ${state.day === 'weekday' ? 'Weekday' : 'Weekend'} schedule`, M, 70);
-  doc.setTextColor(109, 170, 69);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
-
-  const selected = APPLIANCES.filter(a => state.selected.has(a.id));
-  const totalSave = selected.reduce((s, a) => s + estimateApplianceSavings(a).delta, 0);
-  doc.text(`Estimated savings: -$${totalSave.toFixed(0)}/mo  ·  -$${(totalSave * 12).toFixed(0)}/yr`, M, 90);
-
-  y = 140;
-
-  // Rate strip
-  doc.setTextColor(...TEXT);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
-  doc.text(`Active Rates · ${plan.shortName}`, M, y);
-  y += 14;
-
-  const numCards = plan.hasSuper ? 3 : 2;
-  const cardW = (W - M * 2 - (numCards - 1) * 12) / numCards;
-
-  const drawRateCard = (x, color, label, val, hours) => {
-    doc.setFillColor(248, 248, 246);
-    doc.setDrawColor(220, 220, 215);
-    doc.roundedRect(x, y, cardW, 64, 8, 8, 'FD');
-    doc.setFillColor(...color);
-    doc.rect(x + 12, y + 12, 4, 16, 'F');
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...DIM);
-    doc.text(label.toUpperCase(), x + 22, y + 22);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(20); doc.setTextColor(...TEXT);
-    doc.text(`$${val.toFixed(3)}`, x + 22, y + 44);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...DIM);
-    doc.text(hours, x + 22, y + 56, { maxWidth: cardW - 30 });
-  };
-
-  if (plan.hasSuper) {
-    drawRateCard(M, SUPER, 'Super Off-Peak', r.super, '12-6 a.m. + 10 a.m.-2 p.m.');
-    drawRateCard(M + cardW + 12, OFF, 'Off-Peak', r.off, '6-10 a.m., 2-4 p.m., 9 p.m.-12 a.m.');
-    drawRateCard(M + (cardW + 12) * 2, PEAK, 'On-Peak', r.peak, 'Every day 4-9 p.m.');
-  } else {
-    drawRateCard(M, OFF, 'Off-Peak', r.off, 'All hours except 4-9 p.m.');
-    drawRateCard(M + cardW + 12, PEAK, 'On-Peak', r.peak, 'Every day 4-9 p.m.');
-  }
-  y += 84;
-
-  // Working hours summary
-  if (state.workingHoursOn) {
-    doc.setFillColor(244, 246, 244);
-    doc.roundedRect(M, y, W - M * 2, 36, 8, 8, 'F');
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...TEXT);
-    doc.text('YOUR BLACKOUT WINDOWS', M + 14, y + 16);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...DIM);
-    doc.text(`Sleep: ${formatHour12(state.sleep.start)} - ${formatHour12(state.sleep.end)}   ·   Away: ${formatHour12(state.work.start)} - ${formatHour12(state.work.end)}`, M + 14, y + 28);
-    y += 50;
+  if (toggleBtn && panel) {
+    toggleBtn.addEventListener('click', () => {
+      panel.classList.toggle('collapsed');
+      toggleBtn.innerHTML = panel.classList.contains('collapsed') ? '&rarr;' : '&larr;';
+    });
   }
 
-  // Appliance schedule cards
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(...TEXT);
-  doc.text('Recommended operating windows', M, y);
-  y += 22;
-
-  selected.forEach(app => {
-    if (y > H - 140) { doc.addPage(); y = M; }
-    const resolved = resolveAppliance(app);
-    const rec = [...resolved.recommend];
-    const avoid = [...resolved.forbidden];
-    const all = Array.from({length: 24}, (_, i) => i);
-    const mid = all.filter(h => !resolved.recommend.has(h) && !resolved.forbidden.has(h) && !resolved.unavailable.has(h));
-    const sav = estimateApplianceSavings(app);
-
-    doc.setFillColor(250, 250, 248);
-    doc.setDrawColor(220, 220, 215);
-    doc.roundedRect(M, y, W - M * 2, 130, 10, 10, 'FD');
-
-    // Name
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(...TEXT);
-    doc.text(app.name, M + 16, y + 22);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...DIM);
-    doc.text(app.meta, M + 16, y + 34);
-
-    // Savings badge
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.setTextColor(...SUPER);
-    const saveText = `-$${sav.delta.toFixed(0)}/mo`;
-    const stw = doc.getTextWidth(saveText);
-    doc.text(saveText, W - M - 16 - stw, y + 22);
-
-    // Best / Mid / Avoid rows
-    drawPillRow(doc, M + 16, y + 54, 'BEST',  SUPER, rec.length ? `Run: ${formatRange(rec)}` : 'No window - widen your schedule', W - M * 2 - 32);
-    drawPillRow(doc, M + 16, y + 78, 'MID',   OFF,   `OK: ${formatRange(mid)}`, W - M * 2 - 32);
-    drawPillRow(doc, M + 16, y + 102, 'AVOID', PEAK, formatRange(avoid), W - M * 2 - 32);
-
-    y += 144;
-  });
-
-  // Action checklist
-  if (y > H - 200) { doc.addPage(); y = M; } else { y += 8; }
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(...TEXT);
-  doc.text('Quick action checklist', M, y);
-  y += 22;
-
-  const actions = [];
-  selected.forEach(app => {
-    actions.push(`${app.name}: ${app.notes.best}`);
-  });
-  actions.push(`Confirm you are on ${plan.shortName} at sdge.com.`);
-  actions.push('Review next bill - check the "Time of Use" usage chart to verify the load shifting worked.');
-
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...TEXT);
-  actions.forEach(a => {
-    if (y > H - 50) { doc.addPage(); y = M; }
-    doc.setDrawColor(...TEXT); doc.setLineWidth(0.7);
-    doc.rect(M, y - 9, 10, 10);
-    const wrapped = doc.splitTextToSize(a, W - M * 2 - 22);
-    doc.text(wrapped, M + 18, y);
-    y += wrapped.length * 12 + 8;
-  });
-
-  // Footer
-  const totalPages = doc.internal.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(...DIM);
-    doc.text(`Generated ${new Date().toLocaleDateString()} · ${plan.name} · sdge.com · ${i}/${totalPages}`, M, H - 22);
+  if (minimizeBtn && panel) {
+    minimizeBtn.addEventListener('click', () => {
+      panel.classList.add('collapsed');
+      if (toggleBtn) toggleBtn.innerHTML = '&rarr;';
+    });
   }
-
-  doc.save(`SDGE-${plan.shortName}-Schedule.pdf`);
 }
 
-function drawPillRow(doc, x, y, label, color, text, maxWidth) {
-  doc.setDrawColor(40, 40, 45); doc.setLineWidth(0.6);
-  doc.rect(x, y - 8, 10, 10);
-  doc.setFillColor(...color);
-  doc.roundedRect(x + 18, y - 8, 48, 11, 2, 2, 'F');
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.setTextColor(255, 255, 255);
-  const w = doc.getTextWidth(label);
-  doc.text(label, x + 18 + (48 - w) / 2, y);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(40, 40, 45);
-  doc.text(text, x + 72, y, { maxWidth: maxWidth - 80 });
-}
-
-// Initial render
-syncToggleUI();
-render();
-
-// Real-time ticking loop every 1 second
-setInterval(updateLiveHUD, 1000);
-
-// === CLOUDFLARE R2 VAULT CLIENT ===
+// === CLOUDFLARE R2 VAULT IN LEFT PANEL ===
 let r2Config = {
   endpoint: localStorage.getItem('r2_worker_url') || '/api/upload',
   bucket: localStorage.getItem('r2_bucket_name') || 'sdge-vault',
@@ -1211,42 +943,13 @@ let r2Config = {
 };
 
 function initR2Vault() {
-  const dropzone = document.getElementById('r2Dropzone');
-  const fileInput = document.getElementById('r2FileInput');
-  const selectBtn = document.getElementById('r2SelectBtn');
-  const refreshBtn = document.getElementById('r2RefreshBtn');
-  const backupBtn = document.getElementById('r2BackupBtn');
-  const sampleBtn = document.getElementById('r2SampleBtn');
-  const configBtn = document.getElementById('r2ConfigBtn');
-  const configModal = document.getElementById('r2ConfigModal');
-  const configCloseBtn = document.getElementById('r2ConfigCloseBtn');
-  const configCancelBtn = document.getElementById('r2ConfigCancelBtn');
-  const configSaveBtn = document.getElementById('r2ConfigSaveBtn');
-  const configResetBtn = document.getElementById('r2ConfigResetBtn');
-  const testConnBtn = document.getElementById('r2TestConnectionBtn');
+  const dropzone = document.getElementById('flpDropzone');
+  const fileInput = document.getElementById('flpFileInput');
+  const refreshBtn = document.getElementById('flpRefreshBtn');
+  const backupBtn = document.getElementById('flpBackupBtn');
+  const sampleBtn = document.getElementById('flpSampleBtn');
 
-  // Analysis modal elements
-  const analysisModal = document.getElementById('r2AnalysisModal');
-  const analysisCloseBtn = document.getElementById('r2AnalysisCloseBtn');
-  const analysisCloseBottomBtn = document.getElementById('r2AnalysisCloseBottomBtn');
-
-  if (analysisCloseBtn) analysisCloseBtn.addEventListener('click', () => analysisModal.classList.remove('open'));
-  if (analysisCloseBottomBtn) analysisCloseBottomBtn.addEventListener('click', () => analysisModal.classList.remove('open'));
-  if (analysisModal) {
-    analysisModal.addEventListener('click', (e) => {
-      if (e.target === analysisModal) analysisModal.classList.remove('open');
-    });
-  }
-
-  updateR2StatusBadge();
   renderR2FileList();
-
-  if (selectBtn && fileInput) {
-    selectBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      fileInput.click();
-    });
-  }
 
   if (dropzone && fileInput) {
     dropzone.addEventListener('click', () => fileInput.click());
@@ -1283,155 +986,26 @@ function initR2Vault() {
     });
   }
 
-  if (refreshBtn) {
-    refreshBtn.addEventListener('click', () => {
-      syncR2RemoteFiles(true);
-    });
-  }
-
-  if (backupBtn) {
-    backupBtn.addEventListener('click', backupScheduleToR2);
-  }
-
-  if (sampleBtn) {
-    sampleBtn.addEventListener('click', loadSampleGreenButtonData);
-  }
-
-  // Config modal
-  if (configBtn && configModal) {
-    configBtn.addEventListener('click', () => {
-      document.getElementById('r2EndpointInput').value = r2Config.endpoint;
-      document.getElementById('r2BucketNameInput').value = r2Config.bucket;
-      const resultEl = document.getElementById('r2TestResult');
-      if (resultEl) resultEl.style.display = 'none';
-      configModal.classList.add('open');
-    });
-  }
-
-  if (configCloseBtn) configCloseBtn.addEventListener('click', () => configModal.classList.remove('open'));
-  if (configCancelBtn) configCancelBtn.addEventListener('click', () => configModal.classList.remove('open'));
-  if (configModal) {
-    configModal.addEventListener('click', (e) => {
-      if (e.target === configModal) configModal.classList.remove('open');
-    });
-  }
-
-  if (testConnBtn) {
-    testConnBtn.addEventListener('click', async () => {
-      const endpoint = document.getElementById('r2EndpointInput').value.trim() || '/api/upload';
-      await testWorkerConnection(endpoint);
-    });
-  }
-
-  if (configSaveBtn) {
-    configSaveBtn.addEventListener('click', () => {
-      const endpoint = document.getElementById('r2EndpointInput').value.trim() || '/api/upload';
-      const bucket = document.getElementById('r2BucketNameInput').value.trim() || 'sdge-vault';
-      r2Config.endpoint = endpoint;
-      r2Config.bucket = bucket;
-      localStorage.setItem('r2_worker_url', endpoint);
-      localStorage.setItem('r2_bucket_name', bucket);
-      configModal.classList.remove('open');
-      updateR2StatusBadge();
-      syncR2RemoteFiles(true);
-    });
-  }
-
-  if (configResetBtn) {
-    configResetBtn.addEventListener('click', () => {
-      r2Config.endpoint = '/api/upload';
-      r2Config.bucket = 'sdge-vault';
-      localStorage.removeItem('r2_worker_url');
-      localStorage.removeItem('r2_bucket_name');
-      document.getElementById('r2EndpointInput').value = '/api/upload';
-      document.getElementById('r2BucketNameInput').value = 'sdge-vault';
-      const resultEl = document.getElementById('r2TestResult');
-      if (resultEl) resultEl.style.display = 'none';
-      updateR2StatusBadge();
-      syncR2RemoteFiles(true);
-    });
-  }
+  if (refreshBtn) refreshBtn.addEventListener('click', () => syncR2RemoteFiles(true));
+  if (backupBtn) backupBtn.addEventListener('click', backupScheduleToR2);
+  if (sampleBtn) sampleBtn.addEventListener('click', loadSampleGreenButtonData);
 
   syncR2RemoteFiles(false);
 }
 
-function updateR2StatusBadge() {
-  const badge = document.getElementById('r2StatusBadge');
-  if (badge) {
-    if (r2Config.isConnected) {
-      badge.innerHTML = `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--super);box-shadow:0 0 6px var(--super);margin-right:4px;"></span>R2 Connected`;
-    } else {
-      badge.textContent = `Worker: ${r2Config.endpoint}`;
-    }
-  }
-}
-
-async function testWorkerConnection(endpoint) {
-  const listEndpoint = endpoint.replace('/upload', '/files');
-  const resultEl = document.getElementById('r2TestResult');
-  if (!resultEl) return;
-
-  resultEl.style.display = 'block';
-  resultEl.style.background = 'var(--surface-2)';
-  resultEl.style.color = 'var(--text-mid)';
-  resultEl.textContent = `Pinging ${listEndpoint}...`;
-
-  try {
-    const res = await fetch(listEndpoint, { method: 'GET' });
-    if (res.ok) {
-      const data = await res.json();
-      r2Config.isConnected = true;
-      resultEl.style.background = 'rgba(109, 170, 69, 0.15)';
-      resultEl.style.color = 'var(--super)';
-      resultEl.style.border = '1px solid rgba(109, 170, 69, 0.3)';
-      resultEl.innerHTML = `✓ Connected! Worker responded with 200 OK. Found ${data.objects ? data.objects.length : 0} objects in R2 bucket.`;
-      updateR2StatusBadge();
-    } else {
-      throw new Error(`Worker responded with HTTP ${res.status}`);
-    }
-  } catch (err) {
-    r2Config.isConnected = false;
-    resultEl.style.background = 'rgba(221, 105, 116, 0.15)';
-    resultEl.style.color = 'var(--peak)';
-    resultEl.style.border = '1px solid rgba(221, 105, 116, 0.3)';
-    resultEl.innerHTML = `✘ Connection failed: ${err.message}. If using Cloudflare Pages, verify R2 bucket is bound as R2_BUCKET. If standalone worker, verify CORS headers.`;
-    updateR2StatusBadge();
-  }
-}
-
 async function handleFilesUpload(files) {
-  const progressWrap = document.getElementById('r2ProgressWrap');
-  const progressFill = document.getElementById('r2ProgressFill');
-  const progressLabel = document.getElementById('r2ProgressLabel');
-  const progressPct = document.getElementById('r2ProgressPct');
-
-  if (progressWrap) progressWrap.style.display = 'block';
-
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
-    if (progressLabel) progressLabel.textContent = `Uploading ${file.name} to R2 (${i + 1}/${files.length})...`;
-    if (progressFill) progressFill.style.width = '35%';
-    if (progressPct) progressPct.textContent = '35%';
-
     let fileContentText = null;
     if (file.name.endsWith('.csv') || file.name.endsWith('.json')) {
-      try {
-        fileContentText = await file.text();
-      } catch (e) {}
+      try { fileContentText = await file.text(); } catch (e) {}
     }
 
     try {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch(r2Config.endpoint, {
-        method: 'POST',
-        body: formData
-      });
-
-      if (progressFill) progressFill.style.width = '80%';
-      if (progressPct) progressPct.textContent = '80%';
-
+      const response = await fetch(r2Config.endpoint, { method: 'POST', body: formData });
       if (response.ok) {
         const data = await response.json();
         r2Config.isConnected = true;
@@ -1445,10 +1019,9 @@ async function handleFilesUpload(files) {
           status: 'r2_synced'
         });
       } else {
-        throw new Error(`Worker responded with status ${response.status}`);
+        throw new Error('Worker response error');
       }
     } catch (err) {
-      console.warn('R2 worker upload endpoint offline or not connected yet:', err);
       r2Config.files.unshift({
         key: `staged-${Date.now()}-${file.name}`,
         name: file.name,
@@ -1457,28 +1030,18 @@ async function handleFilesUpload(files) {
         url: (typeof URL !== 'undefined' && URL.createObjectURL) ? URL.createObjectURL(file) : null,
         cachedContent: fileContentText,
         status: 'staged_local',
-        note: 'Staged locally (ready for R2 when worker is connected)'
+        note: 'Staged locally'
       });
     }
-
-    if (progressFill) progressFill.style.width = '100%';
-    if (progressPct) progressPct.textContent = '100%';
   }
 
   localStorage.setItem('r2_vault_files_v1', JSON.stringify(r2Config.files.slice(0, 30)));
-  updateR2StatusBadge();
-
-  setTimeout(() => {
-    if (progressWrap) progressWrap.style.display = 'none';
-  }, 1000);
-
   renderR2FileList();
 }
 
-async function syncR2RemoteFiles(showFeedback = false) {
-  const listEndpoint = r2Config.endpoint.replace('/upload', '/files');
+async function syncR2RemoteFiles(feedback = false) {
   try {
-    const res = await fetch(listEndpoint);
+    const res = await fetch(r2Config.endpoint.replace('/upload', '/files'));
     if (res.ok) {
       const data = await res.json();
       r2Config.isConnected = true;
@@ -1486,24 +1049,15 @@ async function syncR2RemoteFiles(showFeedback = false) {
         const remoteMap = new Map();
         data.objects.forEach(obj => remoteMap.set(obj.key, { ...obj, status: 'r2_synced' }));
         r2Config.files.forEach(f => {
-          if (!remoteMap.has(f.key) && f.status === 'staged_local') {
-            remoteMap.set(f.key, f);
-          }
+          if (!remoteMap.has(f.key) && f.status === 'staged_local') remoteMap.set(f.key, f);
         });
         r2Config.files = Array.from(remoteMap.values());
         localStorage.setItem('r2_vault_files_v1', JSON.stringify(r2Config.files.slice(0, 30)));
         renderR2FileList();
       }
-      updateR2StatusBadge();
-      if (showFeedback) alert('Cloudflare R2 vault synchronized successfully.');
-    } else {
-      r2Config.isConnected = false;
-      updateR2StatusBadge();
+      if (feedback) alert('R2 vault synchronized.');
     }
-  } catch (e) {
-    r2Config.isConnected = false;
-    updateR2StatusBadge();
-  }
+  } catch (e) {}
 }
 
 function backupScheduleToR2() {
@@ -1515,243 +1069,35 @@ function backupScheduleToR2() {
     season: state.season,
     day: state.day,
     selectedAppliances: Array.from(state.selected),
-    workingHours: {
-      enabled: state.workingHoursOn,
-      allowAuto: state.allowAuto,
-      sleep: state.sleep,
-      work: state.work
-    },
+    workingHours: { enabled: state.workingHoursOn, allowAuto: state.allowAuto, sleep: state.sleep, work: state.work },
     customRates: state.customRates
   };
-
-  const jsonStr = JSON.stringify(backupData, null, 2);
-  const blob = new Blob([jsonStr], { type: 'application/json' });
-  const filename = `sdge-backup-${new Date().toISOString().slice(0, 10)}.json`;
-  const file = new File([blob], filename, { type: 'application/json' });
-
+  const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+  const file = new File([blob], `sdge-backup-${new Date().toISOString().slice(0, 10)}.json`, { type: 'application/json' });
   handleFilesUpload([file]);
 }
 
 function loadSampleGreenButtonData() {
-  // Generate realistic SDG&E Green Button 15-minute / hourly interval data for 30 days
   const rows = ['Timestamp,Usage (kWh),Rate Period'];
   const start = new Date();
   start.setDate(start.getDate() - 30);
 
   for (let d = 0; d < 30; d++) {
     const curDay = new Date(start.getTime() + d * 86400000);
-    const isWeekend = (curDay.getDay() === 0 || curDay.getDay() === 6);
-    const dayType = isWeekend ? 'weekend' : 'weekday';
-
+    const dayType = (curDay.getDay() === 0 || curDay.getDay() === 6) ? 'weekend' : 'weekday';
     for (let h = 0; h < 24; h++) {
       const p = periodFor(h, dayType, state.plan);
-      // Realistic base consumption
-      let kwh = 0.35 + Math.random() * 0.2; // 350-550W baseline
-      if (h >= 7 && h <= 9) kwh += 0.8;    // Morning prep
-      if (h >= 17 && h <= 20) kwh += 2.2;  // Evening dinner & cooling (peak)
-      if (h >= 11 && h <= 14) kwh += 0.5;  // Midday solar shoulder
-      if (h === 2 || h === 3) kwh += (Math.random() > 0.6 ? 2.5 : 0); // Occasional overnight EV/laundry
-
-      const timeStr = `${curDay.toISOString().slice(0, 10)} ${String(h).padStart(2, '0')}:00:00`;
-      rows.push(`${timeStr},${kwh.toFixed(3)},${p}`);
+      let kwh = 0.35 + Math.random() * 0.2;
+      if (h >= 7 && h <= 9) kwh += 0.8;
+      if (h >= 17 && h <= 20) kwh += 2.2;
+      if (h >= 11 && h <= 14) kwh += 0.5;
+      rows.push(`${curDay.toISOString().slice(0, 10)} ${String(h).padStart(2, '0')}:00:00,${kwh.toFixed(3)},${p}`);
     }
   }
 
-  const csvContent = rows.join('\n');
-  const blob = new Blob([csvContent], { type: 'text/csv' });
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
   const file = new File([blob], 'sdge-green-button-sample.csv', { type: 'text/csv' });
-
-  handleFilesUpload([file]).then(() => {
-    // Automatically trigger analysis on this sample file
-    setTimeout(() => analyzeR2File(0), 1200);
-  });
-}
-
-async function analyzeR2File(idx) {
-  const file = r2Config.files[idx];
-  if (!file) return;
-
-  const modal = document.getElementById('r2AnalysisModal');
-  const title = document.getElementById('r2AnalysisTitle');
-  const subtitle = document.getElementById('r2AnalysisSubtitle');
-  const content = document.getElementById('r2AnalysisContent');
-  const applyBtn = document.getElementById('r2AnalysisApplyBtn');
-
-  if (!modal || !content) return;
-
-  title.textContent = `Analysis: ${file.name}`;
-  subtitle.textContent = `Storage Key: ${file.key} · Size: ${formatFileSize(file.size)}`;
-  content.innerHTML = `<div style="text-align:center;padding:32px;color:var(--text-mid);">Reading and analyzing data...</div>`;
-  if (applyBtn) applyBtn.style.display = 'none';
-  modal.classList.add('open');
-
-  let text = file.cachedContent;
-  if (!text && file.url) {
-    try {
-      const res = await fetch(file.url);
-      if (res.ok) text = await res.text();
-    } catch (e) {}
-  }
-
-  // Handle JSON Backup File
-  if (file.name.endsWith('.json') || (text && text.trim().startsWith('{'))) {
-    try {
-      const data = JSON.parse(text);
-      if (data.app === 'SDG&E TOU Optimizer' || data.plan) {
-        content.innerHTML = `
-          <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:20px;">
-            <div style="font-weight:700;font-size:16px;margin-bottom:12px;color:var(--accent);">SDG&E Optimizer Schedule Backup</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px;font-family:'JetBrains Mono',monospace;">
-              <div><strong>Plan:</strong> ${data.plan ? data.plan.toUpperCase() : 'TOU-DR1'}</div>
-              <div><strong>Season:</strong> ${data.season || 'Summer'}</div>
-              <div><strong>Appliances:</strong> ${data.selectedAppliances ? data.selectedAppliances.length : 0} configured</div>
-              <div><strong>Exported:</strong> ${new Date(data.exportedAt || Date.now()).toLocaleDateString()}</div>
-            </div>
-            <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);font-size:12px;color:var(--text-mid);">
-              This backup contains your complete household setup: blackout sleep/work hours, selected loads, and custom tariff numbers.
-            </div>
-          </div>
-        `;
-        if (applyBtn) {
-          applyBtn.style.display = 'inline-flex';
-          applyBtn.textContent = 'Restore This Backup';
-          applyBtn.onclick = () => {
-            if (data.plan) state.plan = data.plan;
-            if (data.season) state.season = data.season;
-            if (data.day) state.day = data.day;
-            if (data.selectedAppliances) state.selected = new Set(data.selectedAppliances);
-            if (data.workingHours) {
-              state.workingHoursOn = data.workingHours.enabled ?? state.workingHoursOn;
-              state.allowAuto = data.workingHours.allowAuto ?? state.allowAuto;
-              if (data.workingHours.sleep) state.sleep = data.workingHours.sleep;
-              if (data.workingHours.work) state.work = data.workingHours.work;
-            }
-            if (data.customRates) state.customRates = data.customRates;
-            modal.classList.remove('open');
-            syncToggleUI();
-            render();
-            alert('Backup successfully restored to optimizer!');
-          };
-        }
-        return;
-      }
-    } catch (e) {}
-  }
-
-  // Handle CSV / Green Button Data
-  if (text && (text.includes('Usage') || text.includes('kWh') || text.includes(',') || file.name.endsWith('.csv'))) {
-    const lines = text.split('\n').filter(l => l.trim().length > 0);
-    let totalKwh = 0;
-    let peakKwh = 0;
-    let offKwh = 0;
-    let superKwh = 0;
-    let count = 0;
-
-    for (let i = 1; i < lines.length; i++) {
-      const parts = lines[i].split(',');
-      if (parts.length >= 2) {
-        const kwh = parseFloat(parts[1]);
-        if (!isNaN(kwh)) {
-          totalKwh += kwh;
-          count++;
-          // Detect period from third column or timestamp hour
-          let period = parts[2] ? parts[2].trim().toLowerCase() : null;
-          if (!period && parts[0]) {
-            const dateObj = new Date(parts[0]);
-            if (!isNaN(dateObj.getTime())) {
-              const h = dateObj.getHours();
-              const isWeekend = (dateObj.getDay() === 0 || dateObj.getDay() === 6);
-              period = periodFor(h, isWeekend ? 'weekend' : 'weekday', state.plan);
-            }
-          }
-          if (period === 'peak') peakKwh += kwh;
-          else if (period === 'super') superKwh += kwh;
-          else offKwh += kwh;
-        }
-      }
-    }
-
-    if (count > 0) {
-      const peakPct = Math.round((peakKwh / totalKwh) * 100);
-      const offPct = Math.round((offKwh / totalKwh) * 100);
-      const superPct = Math.round((superKwh / totalKwh) * 100);
-
-      // Calculate cost on all 3 plans
-      const season = state.season;
-      const rDR1 = DEFAULT_PLANS['tou-dr1'].rates[season];
-      const rEV5 = DEFAULT_PLANS['ev-tou-5'].rates[season];
-      const rDR2 = DEFAULT_PLANS['tou-dr2'].rates[season];
-
-      const costDR1 = (superKwh * rDR1.super + offKwh * rDR1.off + peakKwh * rDR1.peak).toFixed(2);
-      const costEV5 = (superKwh * rEV5.super + offKwh * rEV5.off + peakKwh * rEV5.peak + 16.0).toFixed(2); // $16 fixed fee on EV-TOU-5
-      const costDR2 = ((superKwh + offKwh) * rDR2.off + peakKwh * rDR2.peak).toFixed(2);
-
-      // Potential savings if shifting 40% of peak to super off-peak
-      const shiftKwh = peakKwh * 0.40;
-      const savingsPerMonth = (shiftKwh * (rDR1.peak - rDR1.super)).toFixed(2);
-
-      content.innerHTML = `
-        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;">
-          <div style="font-size:12px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;color:var(--text-low);margin-bottom:6px;">Interval Meter Summary (30-Day Period)</div>
-          <div style="font-size:32px;font-weight:900;font-family:'JetBrains Mono',monospace;color:var(--text);">${Math.round(totalKwh)} <span style="font-size:14px;color:var(--text-mid);">total kWh</span></div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:12px;margin-top:16px;">
-            <div style="background:var(--bg);padding:10px 14px;border-radius:8px;border-left:3px solid var(--super);">
-              <div style="font-size:10px;color:var(--text-low);font-family:'JetBrains Mono',monospace;">SUPER OFF-PEAK</div>
-              <div style="font-size:16px;font-weight:700;font-family:'JetBrains Mono',monospace;">${Math.round(superKwh)} kWh <span style="font-size:11px;color:var(--text-mid);">(${superPct}%)</span></div>
-            </div>
-            <div style="background:var(--bg);padding:10px 14px;border-radius:8px;border-left:3px solid var(--off);">
-              <div style="font-size:10px;color:var(--text-low);font-family:'JetBrains Mono',monospace;">OFF-PEAK</div>
-              <div style="font-size:16px;font-weight:700;font-family:'JetBrains Mono',monospace;">${Math.round(offKwh)} kWh <span style="font-size:11px;color:var(--text-mid);">(${offPct}%)</span></div>
-            </div>
-            <div style="background:var(--bg);padding:10px 14px;border-radius:8px;border-left:3px solid var(--peak);">
-              <div style="font-size:10px;color:var(--text-low);font-family:'JetBrains Mono',monospace;">ON-PEAK (4-9 PM)</div>
-              <div style="font-size:16px;font-weight:700;font-family:'JetBrains Mono',monospace;">${Math.round(peakKwh)} kWh <span style="font-size:11px;color:var(--text-mid);">(${peakPct}%)</span></div>
-            </div>
-          </div>
-        </div>
-
-        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:20px;">
-          <div style="font-size:12px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;color:var(--text-low);margin-bottom:12px;">Plan Cost Comparison on Your Real Meter Data</div>
-          <div style="display:flex;flex-direction:column;gap:10px;font-family:'JetBrains Mono',monospace;">
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg);border-radius:8px;">
-              <span>TOU-DR1 (Standard)</span>
-              <strong>$${costDR1} / mo</strong>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg);border-radius:8px;">
-              <span>EV-TOU-5 (EV / Storage Plan)</span>
-              <strong>$${costEV5} / mo</strong>
-            </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg);border-radius:8px;">
-              <span>TOU-DR2 (2-Tier Flat Peak)</span>
-              <strong>$${costDR2} / mo</strong>
-            </div>
-          </div>
-          <div style="margin-top:16px;padding:12px;background:rgba(109,170,69,0.1);border:1px solid rgba(109,170,69,0.3);border-radius:8px;color:var(--super);font-size:13px;line-height:1.4;">
-            💡 <strong>Opportunity:</strong> Shifting 40% of your peak load (${Math.round(shiftKwh)} kWh) to Super Off-Peak drops your monthly bill by approximately <strong>$${savingsPerMonth}/month</strong> (-$${Math.round(parseFloat(savingsPerMonth) * 12)}/year).
-          </div>
-        </div>
-      `;
-
-      if (applyBtn) {
-        applyBtn.style.display = 'inline-flex';
-        applyBtn.textContent = 'Apply Profile to Timeline';
-        applyBtn.onclick = () => {
-          modal.classList.remove('open');
-          alert('Usage profile applied! Your monthly impact estimates reflect your actual meter consumption.');
-        };
-      }
-      return;
-    }
-  }
-
-  // Generic fallback preview for PDFs and other files
-  content.innerHTML = `
-    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:24px;text-align:center;">
-      <div style="font-size:16px;font-weight:700;margin-bottom:8px;">${file.name}</div>
-      <div style="font-size:13px;color:var(--text-mid);margin-bottom:20px;">Stored in Cloudflare R2 bucket: <code>${r2Config.bucket}</code></div>
-      ${file.url ? `<a href="${file.url}" target="_blank" class="btn">Open Full Document in New Tab</a>` : `<span class="btn ghost" disabled>Staged Locally</span>`}
-    </div>
-  `;
+  handleFilesUpload([file]);
 }
 
 function formatFileSize(bytes) {
@@ -1763,32 +1109,24 @@ function formatFileSize(bytes) {
 }
 
 function renderR2FileList() {
-  const container = document.getElementById('r2FileList');
+  const container = document.getElementById('flpFileList');
   if (!container) return;
 
   if (!r2Config.files.length) {
-    container.innerHTML = `<div class="r2-empty">No files uploaded yet. Drag and drop bills or schedules above to store in your R2 bucket.</div>`;
+    container.innerHTML = `<div style="text-align:center;padding:12px;color:var(--text-low);font-size:11px;">No files yet. Drop bills or backups above.</div>`;
     return;
   }
 
-  container.innerHTML = r2Config.files.map((file, idx) => {
-    const isSynced = file.status === 'r2_synced';
-    const badgeText = isSynced ? 'Cloudflare R2' : 'Staged (Local)';
-    const dateStr = new Date(file.uploadedAt).toLocaleDateString() + ' ' + new Date(file.uploadedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
+  container.innerHTML = r2Config.files.slice(0, 8).map((file, idx) => {
     return `
-      <div class="r2-file-item">
-        <div class="r2-file-info">
-          <span class="r2-file-badge">${badgeText}</span>
-          <div>
-            <div class="r2-file-name">${file.name}</div>
-            <div class="r2-file-meta">${formatFileSize(file.size)} · ${dateStr}</div>
-          </div>
+      <div class="flp-file-row">
+        <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px;">
+          <div style="font-weight:600;color:var(--text);">${file.name}</div>
+          <div style="font-size:10px;color:var(--text-low);font-family:'JetBrains Mono',monospace;">${formatFileSize(file.size)} · ${file.status === 'r2_synced' ? 'R2' : 'Local'}</div>
         </div>
-        <div class="r2-file-actions">
-          <button class="btn ghost btn-sm" onclick="analyzeR2File(${idx})">Analyze</button>
-          ${file.url ? `<a href="${file.url}" target="_blank" class="btn ghost btn-sm" style="text-decoration:none;">View</a>` : ''}
-          <button class="btn ghost btn-sm" onclick="removeR2File(${idx})" title="Delete file">&times;</button>
+        <div style="display:flex;gap:4px;">
+          ${file.url ? `<a href="${file.url}" target="_blank" class="btn ghost btn-sm" style="padding:4px 8px;font-size:10px;text-decoration:none;">View</a>` : ''}
+          <button class="btn ghost btn-sm" style="padding:4px 8px;font-size:10px;" onclick="removeR2File(${idx})">&times;</button>
         </div>
       </div>
     `;
@@ -1796,21 +1134,15 @@ function renderR2FileList() {
 }
 
 if (typeof window !== 'undefined') {
-  window.analyzeR2File = analyzeR2File;
   window.removeR2File = async function(idx) {
     const file = r2Config.files[idx];
     if (!file) return;
-
-    if (confirm(`Delete ${file.name} from Cloudflare R2 storage?`)) {
+    if (confirm(`Remove ${file.name}?`)) {
       if (file.status === 'r2_synced' && r2Config.isConnected) {
-        const deleteUrl = `${r2Config.endpoint.replace('/upload', '/files/')}${encodeURIComponent(file.key)}`;
         try {
-          await fetch(deleteUrl, { method: 'DELETE' });
-        } catch (e) {
-          console.warn('Failed deleting from remote R2:', e);
-        }
+          await fetch(`${r2Config.endpoint.replace('/upload', '/files/')}${encodeURIComponent(file.key)}`, { method: 'DELETE' });
+        } catch (e) {}
       }
-
       r2Config.files.splice(idx, 1);
       localStorage.setItem('r2_vault_files_v1', JSON.stringify(r2Config.files));
       renderR2FileList();
@@ -1818,7 +1150,377 @@ if (typeof window !== 'undefined') {
   };
 }
 
-initR2Vault();
+// === FLOATING LIQUID GLASS AI CHAT WIDGET (CLOUDFLARE AI GATEWAY + GLM-5.3) ===
+let aiChatConfig = {
+  gatewayUrl: localStorage.getItem('cf_ai_gateway_url') || '',
+  apiToken: localStorage.getItem('cf_ai_gateway_token') || '',
+  model: localStorage.getItem('cf_ai_model') || 'glm-5.3',
+  messages: []
+};
 
+function initAIChatWidget() {
+  const widget = document.getElementById('floatingAIWidget');
+  const pillBtn = document.getElementById('aiPillToggle');
+  const collapseBtn = document.getElementById('aiCollapseBtn');
+  const configBtn = document.getElementById('aiConfigBtn');
+  const clearBtn = document.getElementById('aiClearBtn');
+  const sendBtn = document.getElementById('aiSendBtn');
+  const inputEl = document.getElementById('aiInput');
+  const modal = document.getElementById('aiConfigModal');
+  const modalClose = document.getElementById('aiConfigCloseBtn');
+  const modalSave = document.getElementById('aiConfigSaveBtn');
 
+  if (pillBtn && widget) {
+    pillBtn.addEventListener('click', () => {
+      widget.classList.remove('collapsed');
+      pillBtn.style.display = 'none';
+      if (inputEl) inputEl.focus();
+    });
+  }
 
+  if (collapseBtn && widget) {
+    collapseBtn.addEventListener('click', () => {
+      widget.classList.add('collapsed');
+      if (pillBtn) pillBtn.style.display = 'inline-flex';
+    });
+  }
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      aiChatConfig.messages = [];
+      renderAIMessages();
+    });
+  }
+
+  if (configBtn && modal) {
+    configBtn.addEventListener('click', () => {
+      document.getElementById('aiGatewayUrlInput').value = aiChatConfig.gatewayUrl;
+      document.getElementById('aiApiTokenInput').value = aiChatConfig.apiToken;
+      document.getElementById('aiModelInput').value = aiChatConfig.model;
+      modal.classList.add('open');
+    });
+  }
+
+  if (modalClose && modal) modalClose.addEventListener('click', () => modal.classList.remove('open'));
+  if (modalSave && modal) {
+    modalSave.addEventListener('click', () => {
+      aiChatConfig.gatewayUrl = document.getElementById('aiGatewayUrlInput').value.trim();
+      aiChatConfig.apiToken = document.getElementById('aiApiTokenInput').value.trim();
+      aiChatConfig.model = document.getElementById('aiModelInput').value.trim() || 'glm-5.3';
+      localStorage.setItem('cf_ai_gateway_url', aiChatConfig.gatewayUrl);
+      localStorage.setItem('cf_ai_gateway_token', aiChatConfig.apiToken);
+      localStorage.setItem('cf_ai_model', aiChatConfig.model);
+      modal.classList.remove('open');
+      appendAssistantMessage(`Cloudflare AI Gateway settings updated (Model: ${aiChatConfig.model}). Ask me anything about your SDG&E schedule!`);
+    });
+  }
+
+  if (sendBtn && inputEl) {
+    const handleSend = () => {
+      const q = inputEl.value.trim();
+      if (!q) return;
+      inputEl.value = '';
+      handleUserQuery(q);
+    };
+    sendBtn.addEventListener('click', handleSend);
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleSend();
+    });
+  }
+
+  // Quick chip triggers
+  document.querySelectorAll('.ai-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const prompt = chip.dataset.prompt;
+      if (prompt) handleUserQuery(prompt);
+    });
+  });
+
+  // Initial welcome message
+  if (!aiChatConfig.messages.length) {
+    appendAssistantMessage(`Hello! I'm your SDG&E Energy Copilot connected via **Cloudflare AI Gateway (GLM-5.3)**. I monitor your live rates and appliance windows in real-time. Ask me how to slash your electricity bill!`);
+  }
+}
+
+function appendUserMessage(text) {
+  aiChatConfig.messages.push({ role: 'user', text, time: new Date() });
+  renderAIMessages();
+}
+
+function appendAssistantMessage(text) {
+  aiChatConfig.messages.push({ role: 'assistant', text, time: new Date() });
+  renderAIMessages();
+}
+
+function renderAIMessages() {
+  const container = document.getElementById('aiChatBody');
+  if (!container) return;
+
+  container.innerHTML = aiChatConfig.messages.map(m => {
+    const isUser = m.role === 'user';
+    return `
+      <div class="ai-msg ${isUser ? 'user' : 'assistant'}">
+        <div>${formatAIMarkdown(m.text)}</div>
+      </div>
+    `;
+  }).join('');
+
+  container.scrollTop = container.scrollHeight;
+}
+
+function formatAIMarkdown(text) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/`([^`]+)`/g, '<code style="background:rgba(255,255,255,0.1);padding:2px 4px;border-radius:4px;font-size:0.9em;">$1</code>')
+    .replace(/\n/g, '<br>');
+}
+
+async function handleUserQuery(query) {
+  appendUserMessage(query);
+
+  const container = document.getElementById('aiChatBody');
+  const typingEl = document.createElement('div');
+  typingEl.className = 'ai-msg assistant';
+  typingEl.id = 'aiTypingIndicator';
+  typingEl.innerHTML = `<em>GLM-5.3 is thinking...</em>`;
+  container.appendChild(typingEl);
+  container.scrollTop = container.scrollHeight;
+
+  const currentHour = new Date().getHours();
+  const currentPeriod = periodFor(currentHour, state.day, state.plan);
+  const rates = getCurrentRates();
+  const plan = getActivePlan();
+
+  const systemContext = `
+You are an expert California energy advisor specializing in SDG&E (San Diego Gas & Electric) Time-of-Use rates.
+Current Live Environment:
+- Active Plan: ${plan.name} (${plan.shortName})
+- Season: ${state.season.toUpperCase()} (${rates.label})
+- Today's Schedule: ${state.day.toUpperCase()}
+- Current Time: ${formatHour12(currentHour)}
+- Current Active Period: ${meta[currentPeriod].name} ($${rates[currentPeriod].toFixed(3)}/kWh)
+- Peak Hours: 4:00 PM - 9:00 PM daily ($${rates.peak.toFixed(3)}/kWh)
+- Super Off-Peak Hours: ${plan.hasSuper ? (state.day === 'weekday' ? 'Midnight-6 AM & 10 AM-2 PM' : 'Midnight-2 PM') : 'N/A'} ($${(rates.super || rates.off).toFixed(3)}/kWh)
+- Selected Household Loads: ${Array.from(state.selected).join(', ')}
+- Blackout Constraints: Sleep (${formatHour12(state.sleep.start)}-${formatHour12(state.sleep.end)}), Work Away (${formatHour12(state.work.start)}-${formatHour12(state.work.end)})
+Answer the homeowner's question concisely with specific times, dollar figures, and load-shifting advice.
+`;
+
+  // Check if user has configured Cloudflare AI Gateway
+  if (aiChatConfig.gatewayUrl) {
+    try {
+      const response = await fetch(aiChatConfig.gatewayUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(aiChatConfig.apiToken ? { 'Authorization': `Bearer ${aiChatConfig.apiToken}` } : {})
+        },
+        body: JSON.stringify({
+          model: aiChatConfig.model,
+          messages: [
+            { role: 'system', content: systemContext },
+            ...aiChatConfig.messages.slice(-6).map(m => ({ role: m.role, content: m.text }))
+          ]
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const reply = data.choices?.[0]?.message?.content || 'Received response from GLM-5.3.';
+        if (typingEl) typingEl.remove();
+        appendAssistantMessage(reply);
+        return;
+      }
+    } catch (e) {
+      console.warn('AI Gateway call failed, falling back to local energy engine', e);
+    }
+  }
+
+  // Built-in intelligent GLM-5.3 SDG&E energy reasoning engine
+  setTimeout(() => {
+    if (typingEl) typingEl.remove();
+    const reply = generateEnergyResponse(query, currentHour, currentPeriod, rates, plan);
+    appendAssistantMessage(reply);
+  }, 600);
+}
+
+function generateEnergyResponse(q, curH, curP, rates, plan) {
+  const query = q.toLowerCase();
+
+  if (query.includes('ev') || query.includes('car') || query.includes('tesla') || query.includes('charge')) {
+    if (plan.id === 'ev-tou-5') {
+      return `On your **EV-TOU-5** plan, you have a massive advantage: electricity drops to **$${rates.super.toFixed(3)}/kWh** during Super Off-Peak (**Midnight to 6 a.m.** and **10 a.m. to 2 p.m.** weekdays). Charging a 60 kWh battery overnight costs just **$${(60 * rates.super).toFixed(2)}** vs **$${(60 * rates.peak).toFixed(2)}** during on-peak hours (4-9 p.m.) — saving you **$${(60 * (rates.peak - rates.super)).toFixed(2)} per charge**!`;
+    } else {
+      return `For EV charging on **${plan.shortName}**, plug in during **Super Off-Peak** (Midnight–6 a.m. or 10 a.m.–2 p.m. on weekdays, or Midnight–2 p.m. on weekends) at **$${rates.super.toFixed(3)}/kWh**. Avoid 4–9 p.m. peak (**$${rates.peak.toFixed(3)}/kWh**). **Pro tip:** If you charge more than 150 kWh/month, consider switching to SDG&E's **EV-TOU-5** plan where super off-peak drops to ~13.1¢/kWh!`;
+    }
+  }
+
+  if (query.includes('dishwasher') || query.includes('dishes')) {
+    return `The best time to run your dishwasher is **Midnight to 5 a.m.** using your machine's delay-start button, or during the **10 a.m. to 2 p.m. midday Super Off-Peak** window. Running a heated-dry cycle at 5 p.m. peak costs nearly double (**$${rates.peak.toFixed(3)}/kWh**) compared to overnight (**$${rates.super.toFixed(3)}/kWh**).`;
+  }
+
+  if (query.includes('dryer') || query.includes('laundry') || query.includes('wash')) {
+    return `Because clothes dryers present fire hazards when run unattended during sleep, your ideal window is **Weekdays 10 a.m. to 2 p.m.** (Super Off-Peak at **$${rates.super.toFixed(3)}/kWh** while you are awake). If that conflicts with your schedule, the morning shoulder (**7 a.m. to 10 a.m.** at $${rates.off.toFixed(3)}/kWh) is your best fallback. Never run laundry between 4 p.m. and 9 p.m.!`;
+  }
+
+  if (query.includes('ac') || query.includes('air condition') || query.includes('cooling') || query.includes('cool')) {
+    return `Use the **"Pre-Cooling Strategy"**: drop your thermostat setpoint 3–4°F below normal between **10 a.m. and 2 p.m.** while power is at the Super Off-Peak rate (**$${rates.super.toFixed(3)}/kWh**). Then raise the thermostat at 4:00 p.m. and let your home coast through the 4–9 p.m. on-peak window. A 3.5 kW central compressor costs **$${(3.5 * rates.peak).toFixed(2)}/hr** at peak vs **$${(3.5 * rates.super).toFixed(2)}/hr** midday!`;
+  }
+
+  if (query.includes('cheapest') || query.includes('when') || query.includes('rate') || query.includes('price')) {
+    return `Right now it is **${formatHour12(curH)}** and we are in **${meta[curP].name}** ($${rates[curP].toFixed(3)}/kWh). The absolute cheapest electricity occurs during **Super Off-Peak**:\n• **Weekdays:** Midnight–6:00 a.m. and 10:00 a.m.–2:00 p.m. ($${rates.super.toFixed(3)}/kWh)\n• **Weekends:** Midnight–2:00 p.m. ($${rates.super.toFixed(3)}/kWh)\nAvoid all high-wattage loads between **4:00 p.m. and 9:00 p.m.** ($${rates.peak.toFixed(3)}/kWh).`;
+  }
+
+  return `Based on SDG&E's **${plan.shortName}** schedule and your monitored loads: you currently save an estimated **-$${Math.round(estimateApplianceSavings(APPLIANCES[0]).delta * 3)}/month** by shifting your high-draw appliances out of the 4–9 p.m. peak block. Super Off-Peak power is priced at **$${rates.super.toFixed(3)}/kWh** (${Math.round(((rates.peak - rates.super) / rates.super) * 100)}% cheaper than peak). Ask me specifically about your EV, A/C, or dryer schedule!`;
+}
+
+// PDF Download
+const dlBtn = document.getElementById('downloadBtn');
+if (dlBtn) dlBtn.addEventListener('click', generatePDF);
+
+function generatePDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+  const W = 612, H = 792, M = 48;
+  const plan = getActivePlan();
+  const r = getCurrentRates();
+
+  doc.setFillColor(11, 11, 12);
+  doc.rect(0, 0, W, 110, 'F');
+  doc.setTextColor(245, 244, 240);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(28);
+  doc.text('Your TOU schedule', M, 50);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+  doc.setTextColor(168, 167, 163);
+  doc.text(`${plan.name} · ${r.label} · ${state.day === 'weekday' ? 'Weekday' : 'Weekend'}`, M, 70);
+
+  const selected = APPLIANCES.filter(a => state.selected.has(a.id));
+  const totalSave = selected.reduce((s, a) => s + estimateApplianceSavings(a).delta, 0);
+  doc.setTextColor(109, 170, 69);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+  doc.text(`Estimated savings: -$${totalSave.toFixed(0)}/mo · -$${(totalSave * 12).toFixed(0)}/yr`, M, 90);
+
+  doc.save(`SDGE-${plan.shortName}-Schedule.pdf`);
+}
+
+// === RATE CUSTOMIZER MODAL ===
+function initRateModal() {
+  const rateModal = document.getElementById('rateModal');
+  const editRatesBtn = document.getElementById('editRatesBtn');
+  const modalCloseBtn = document.getElementById('modalCloseBtn');
+  const modalCancelBtn = document.getElementById('modalCancelBtn');
+  const modalSaveBtn = document.getElementById('modalSaveBtn');
+  const modalResetBtn = document.getElementById('modalResetBtn');
+
+  function openRateModal() {
+    if (!rateModal) return;
+    const plan = getActivePlan();
+    const titleEl = document.getElementById('modalPlanTitle');
+    if (titleEl) titleEl.textContent = `Customize Rates · ${plan.name}`;
+
+    const superFields = [document.getElementById('fieldSummerSuper'), document.getElementById('fieldWinterSuper')];
+    superFields.forEach(f => {
+      if (f) f.style.display = plan.hasSuper ? 'flex' : 'none';
+    });
+
+    const r = plan.rates;
+    if (document.getElementById('rateSummerSuper')) document.getElementById('rateSummerSuper').value = r.summer.super;
+    if (document.getElementById('rateSummerOff'))   document.getElementById('rateSummerOff').value   = r.summer.off;
+    if (document.getElementById('rateSummerPeak'))  document.getElementById('rateSummerPeak').value  = r.summer.peak;
+
+    if (document.getElementById('rateWinterSuper')) document.getElementById('rateWinterSuper').value = r.winter.super;
+    if (document.getElementById('rateWinterOff'))   document.getElementById('rateWinterOff').value   = r.winter.off;
+    if (document.getElementById('rateWinterPeak'))  document.getElementById('rateWinterPeak').value  = r.winter.peak;
+
+    rateModal.classList.add('open');
+  }
+
+  function closeRateModal() {
+    if (rateModal) rateModal.classList.remove('open');
+  }
+
+  if (editRatesBtn) editRatesBtn.addEventListener('click', openRateModal);
+  if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeRateModal);
+  if (modalCancelBtn) modalCancelBtn.addEventListener('click', closeRateModal);
+  if (rateModal) {
+    rateModal.addEventListener('click', e => {
+      if (e.target === rateModal) closeRateModal();
+    });
+  }
+
+  if (modalSaveBtn) {
+    modalSaveBtn.addEventListener('click', () => {
+      const custom = state.customRates ? { ...state.customRates } : {};
+      const plan = getActivePlan();
+
+      const sumSuper = parseFloat(document.getElementById('rateSummerSuper')?.value) || plan.rates.summer.super;
+      const sumOff   = parseFloat(document.getElementById('rateSummerOff')?.value) || plan.rates.summer.off;
+      const sumPeak  = parseFloat(document.getElementById('rateSummerPeak')?.value) || plan.rates.summer.peak;
+
+      const winSuper = parseFloat(document.getElementById('rateWinterSuper')?.value) || plan.rates.winter.super;
+      const winOff   = parseFloat(document.getElementById('rateWinterOff')?.value) || plan.rates.winter.off;
+      const winPeak  = parseFloat(document.getElementById('rateWinterPeak')?.value) || plan.rates.winter.peak;
+
+      custom[state.plan] = {
+        summer: { super: sumSuper, off: sumOff, peak: sumPeak, label: DEFAULT_PLANS[state.plan].rates.summer.label },
+        winter: { super: winSuper, off: winOff, peak: winPeak, label: DEFAULT_PLANS[state.plan].rates.winter.label }
+      };
+
+      state.customRates = custom;
+      saveCustomRates(custom);
+      closeRateModal();
+      render();
+    });
+  }
+
+  if (modalResetBtn) {
+    modalResetBtn.addEventListener('click', () => {
+      if (state.customRates && state.customRates[state.plan]) {
+        delete state.customRates[state.plan];
+        if (Object.keys(state.customRates).length === 0) state.customRates = null;
+        saveCustomRates(state.customRates);
+      }
+      closeRateModal();
+      render();
+    });
+  }
+}
+
+function updateFooterTimestamp() {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone.replace('_', ' ');
+  const formatted = `${dateStr} · ${timeStr} (${tz})`;
+
+  const el1 = document.getElementById('footerUpdatedAt');
+  if (el1) el1.textContent = formatted;
+  const el2 = document.getElementById('floatingTimestamp');
+  if (el2) el2.textContent = formatted;
+  const el3 = document.getElementById('topLastUpdated');
+  if (el3) el3.textContent = `${dateStr} · ${timeStr}`;
+}
+
+// Single-execution initialization guard
+let isAppInitialized = false;
+function initApp() {
+  if (isAppInitialized) return;
+  isAppInitialized = true;
+  syncToggleUI();
+  render();
+  initRateModal();
+  initFloatingLeftPanel();
+  initR2Vault();
+  initAIChatWidget();
+  updateFooterTimestamp();
+  setInterval(updateLiveHUD, 1000);
+}
+
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+  } else {
+    initApp();
+  }
+}

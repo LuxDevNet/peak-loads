@@ -3,14 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>SDG&amp;E TOU Optimizer &amp; Live Rates</title>
+<title>SDG&amp;E TOU Optimizer · v2.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&f[]=jetbrains-mono@400,600&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
   :root {
-    /* Restrained Nexus dark with TOU semantic accents */
     --bg:        #0b0b0c;
     --surface:   #131316;
     --surface-2: #1a1a1f;
@@ -21,18 +20,14 @@
     --text-low:  #6b6a67;
     --text-dim:  #45454c;
 
-    /* TOU semantic - the only colors that earn their place */
     --super: #6DAA45;
     --off:   #E8AF34;
     --peak:  #DD6974;
 
-    /* Dynamic period accent (updated by live loop) */
     --current-color: var(--super);
-
-    /* Accent */
     --accent: #4F98A3;
+    --accent-glow: rgba(79, 152, 163, 0.25);
 
-    /* Off-window / blackout */
     --blackout: rgba(20, 20, 24, 0.92);
     --blackout-stripe: rgba(255, 255, 255, 0.04);
   }
@@ -50,18 +45,72 @@
       radial-gradient(700px 500px at 0% 100%, rgba(109, 170, 69, 0.04), transparent 60%),
       var(--bg);
     min-height: 100vh;
+    padding-bottom: 60px;
   }
-  .container { max-width: 1320px; margin: 0 auto; padding: 48px 32px 96px; }
+
+  /* TOP NAVIGATION BAR */
+  .top-bar {
+    position: sticky;
+    top: 0;
+    z-index: 900;
+    background: rgba(11, 11, 12, 0.88);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    font-size: 13px;
+  }
+  .top-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .top-badge {
+    background: rgba(79, 152, 163, 0.15);
+    border: 1px solid rgba(79, 152, 163, 0.35);
+    color: var(--accent);
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .top-bar-desc {
+    color: var(--text-mid);
+    font-size: 12px;
+  }
+  .top-bar-right {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-mid);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .container {
+    max-width: 1260px;
+    margin: 0 auto;
+    padding: 40px 32px 80px;
+    position: relative;
+  }
 
   /* === HERO === */
-  .hero { margin-bottom: 36px; }
+  .hero { margin-bottom: 32px; }
   .hero-eyebrow-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
     flex-wrap: wrap;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
   }
   .eyebrow {
     display: inline-flex;
@@ -92,18 +141,17 @@
     color: var(--text-low);
     letter-spacing: 0.06em;
   }
-
   h1 {
-    font-size: clamp(52px, 8.5vw, 120px);
+    font-size: clamp(48px, 7vw, 104px);
     font-weight: 900;
     letter-spacing: -0.045em;
-    line-height: 0.9;
-    margin-bottom: 20px;
+    line-height: 0.92;
+    margin-bottom: 18px;
   }
   h1 .accent { color: var(--super); }
   h1 .quiet { color: var(--text-low); font-weight: 700; }
   .lede {
-    font-size: clamp(16px, 1.5vw, 20px);
+    font-size: clamp(15px, 1.4vw, 19px);
     color: var(--text-mid);
     max-width: 760px;
     line-height: 1.55;
@@ -115,8 +163,8 @@
     background: linear-gradient(145deg, rgba(19, 19, 22, 0.96), rgba(26, 26, 31, 0.96));
     border: 1px solid var(--border-hi);
     border-radius: 20px;
-    padding: 24px 28px;
-    margin-bottom: 36px;
+    padding: 22px 26px;
+    margin-bottom: 32px;
     position: relative;
     overflow: hidden;
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
@@ -140,7 +188,7 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 16px;
-    padding-bottom: 18px;
+    padding-bottom: 16px;
     border-bottom: 1px solid var(--border);
   }
   .live-hud-badge-group {
@@ -199,13 +247,11 @@
     padding: 5px 12px;
     border-radius: 8px;
   }
-  .live-clock svg { color: var(--accent); }
-
   .live-hud-main {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 24px;
-    margin-top: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-top: 18px;
     align-items: flex-start;
   }
   .live-stat-box .sub {
@@ -219,7 +265,7 @@
   }
   .live-stat-box .val {
     font-family: 'JetBrains Mono', monospace;
-    font-size: clamp(32px, 4vw, 48px);
+    font-size: clamp(30px, 3.5vw, 44px);
     font-weight: 900;
     line-height: 1;
     letter-spacing: -0.04em;
@@ -238,497 +284,447 @@
     margin-top: 6px;
     line-height: 1.45;
   }
-
   .live-hud-footer {
-    margin-top: 20px;
-    padding-top: 16px;
+    margin-top: 18px;
+    padding-top: 14px;
     border-top: 1px solid var(--border);
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
     flex-wrap: wrap;
-    font-size: 12px;
   }
   .live-tip {
     display: flex;
     align-items: center;
     gap: 10px;
-    color: var(--text-mid);
     font-size: 13px;
-    line-height: 1.4;
-    max-width: 650px;
+    color: var(--text-mid);
   }
-  .live-tip svg { flex-shrink: 0; color: var(--current-color); }
-  .live-tip strong { color: var(--text); font-weight: 600; }
-
   .live-instant-costs {
     display: flex;
-    gap: 16px;
+    gap: 12px;
     flex-wrap: wrap;
     font-family: 'JetBrains Mono', monospace;
     font-size: 11px;
-    color: var(--text-low);
-    background: var(--bg);
-    border: 1px solid var(--border);
-    padding: 8px 14px;
-    border-radius: 10px;
-  }
-  .live-instant-costs .item { display: inline-flex; gap: 6px; align-items: baseline; }
-  .live-instant-costs .item span { color: var(--text-low); }
-  .live-instant-costs .item strong { color: var(--text); font-weight: 700; }
-
-  /* === SECTION TITLES === */
-  .section { margin-top: 64px; }
-  .section-head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    margin-bottom: 24px;
-    gap: 24px;
-    flex-wrap: wrap;
-  }
-  .section-title {
-    font-size: clamp(28px, 4vw, 44px);
-    font-weight: 900;
-    letter-spacing: -0.03em;
-    line-height: 1;
-  }
-  .section-title .num {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.5em;
-    font-weight: 600;
-    color: var(--text-low);
-    margin-right: 16px;
-    letter-spacing: 0;
-    position: relative;
-    top: -0.4em;
-  }
-  .section-sub {
     color: var(--text-mid);
-    font-size: 14px;
-    max-width: 520px;
   }
+  .live-instant-costs .item {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    padding: 3px 8px;
+    border-radius: 6px;
+    display: flex;
+    gap: 6px;
+  }
+  .live-instant-costs .item strong { color: var(--text); }
 
-  /* === CONTROLS BAR === */
+  /* === CONTROLS === */
   .controls {
     display: flex;
-    gap: 16px;
     flex-wrap: wrap;
-    align-items: flex-end;
-    margin-bottom: 40px;
+    gap: 16px;
+    align-items: center;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 18px 24px;
+    border-radius: 16px;
+    padding: 16px 20px;
+    margin-bottom: 32px;
   }
   .controls-group {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
+    align-items: center;
+    gap: 10px;
   }
   .controls-label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    letter-spacing: 0.1em;
+    font-size: 11px;
     text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-family: 'JetBrains Mono', monospace;
     color: var(--text-low);
     font-weight: 600;
   }
   .seg {
     display: inline-flex;
-    background: var(--bg);
+    background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 4px;
+    border-radius: 10px;
+    padding: 3px;
     gap: 2px;
   }
   .seg button {
     background: transparent;
     border: 0;
     color: var(--text-mid);
-    padding: 8px 16px;
-    font: inherit;
+    padding: 7px 13px;
     font-size: 12px;
     font-weight: 600;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.15s;
     font-family: inherit;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: all 0.15s ease;
   }
+  .seg button:hover { color: var(--text); }
   .seg button.active {
     background: var(--text);
     color: var(--bg);
+    font-weight: 700;
   }
-  .seg button:hover:not(.active) { color: var(--text); }
-
   .controls-actions {
+    margin-left: auto;
     display: flex;
     gap: 8px;
     align-items: center;
-    margin-left: auto;
     flex-wrap: wrap;
   }
-
   .btn {
     background: var(--text);
     color: var(--bg);
     border: 0;
-    padding: 10px 18px;
-    font: inherit;
-    font-weight: 700;
-    font-size: 12px;
+    padding: 9px 18px;
     border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    transition: transform 0.1s, box-shadow 0.2s, background 0.15s;
-    font-family: inherit;
-    letter-spacing: -0.005em;
+    transition: transform 0.15s, opacity 0.15s;
   }
-  .btn:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(245, 244, 240, 0.12); }
-  .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--border-hi); }
-  .btn.ghost:hover { background: var(--surface-2); box-shadow: none; border-color: var(--text-mid); }
+  .btn:hover { opacity: 0.92; transform: translateY(-1px); }
+  .btn.ghost {
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn.ghost:hover { background: var(--surface); border-color: var(--border-hi); }
+  .btn.btn-sm { padding: 6px 12px; font-size: 11px; border-radius: 7px; }
+  .btn.btn-mini { padding: 4px 8px; font-size: 10px; border-radius: 5px; }
 
-  .live-sync-btn {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
-  .live-sync-btn.synced {
-    border-color: rgba(109, 170, 69, 0.4);
-    color: var(--super);
-    background: rgba(109, 170, 69, 0.05);
-  }
-  .live-sync-btn.manual {
-    border-color: rgba(232, 175, 52, 0.4);
-    color: var(--off);
-    background: rgba(232, 175, 52, 0.05);
-  }
+  .live-sync-btn.synced { border-color: var(--super); color: var(--super); }
+  .live-sync-btn.manual { border-color: var(--off); color: var(--off); }
   .live-dot-mini {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: currentColor;
-    box-shadow: 0 0 6px currentColor;
+    width: 6px; height: 6px; border-radius: 50%; background: currentColor;
   }
 
-  /* === RATE CARDS — HUGE NUMBERS === */
+  /* === RATES GRID === */
   .rate-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 1px;
-    background: var(--border);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    overflow: hidden;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 40px;
   }
   .rate-card {
     background: var(--surface);
-    padding: 28px 26px 24px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 22px;
     position: relative;
-    transition: background 0.2s, box-shadow 0.2s;
+    overflow: hidden;
+    transition: transform 0.2s, border-color 0.2s;
   }
-  .rate-card:hover { background: var(--surface-2); }
+  .rate-card:hover { transform: translateY(-2px); border-color: var(--border-hi); }
   .rate-card.active-now {
-    background: var(--surface-2);
-    box-shadow: inset 0 0 0 2px var(--c), 0 10px 30px rgba(0, 0, 0, 0.4);
+    border-color: var(--c);
+    box-shadow: 0 0 24px rgba(109, 170, 69, 0.15);
   }
-  .card-live-pill {
+  .rate-card::before {
+    content: '';
     position: absolute;
-    top: 24px;
-    right: 20px;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--c);
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid var(--c);
-    border-radius: 999px;
-    padding: 4px 10px;
-  }
-  .card-live-pill .pulse {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
+    top: 0; left: 0; right: 0;
+    height: 3px;
     background: var(--c);
-    box-shadow: 0 0 6px var(--c);
-    animation: livePulse 1.5s infinite;
   }
   .rate-card .label {
     font-family: 'JetBrains Mono', monospace;
     font-size: 11px;
-    color: var(--text-mid);
+    font-weight: 700;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    letter-spacing: 0.12em;
-    font-weight: 600;
-    margin-bottom: 18px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .rate-card .label::before {
-    content: '';
-    width: 8px;
-    height: 8px;
-    border-radius: 2px;
-    background: var(--c);
+    color: var(--c);
+    margin-bottom: 10px;
   }
   .rate-card .value {
-    font-size: clamp(38px, 5vw, 60px);
-    font-weight: 900;
     font-family: 'JetBrains Mono', monospace;
-    color: var(--text);
+    font-size: 38px;
+    font-weight: 900;
     line-height: 1;
     letter-spacing: -0.04em;
-    font-feature-settings: 'tnum';
+    color: var(--text);
   }
-  .rate-card .value .cents { color: var(--c); }
   .rate-card .unit {
     font-size: 12px;
-    color: var(--text-low);
-    margin-top: 8px;
-    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-mid);
+    margin: 8px 0 12px;
   }
   .rate-card .hours {
-    margin-top: 14px;
-    padding-top: 14px;
-    border-top: 1px dashed var(--border);
+    font-size: 11px;
+    color: var(--text-low);
+    line-height: 1.4;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .card-live-pill {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: rgba(109, 170, 69, 0.15);
+    border: 1px solid var(--super);
+    color: var(--super);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    text-transform: uppercase;
+  }
+  .card-live-pill .pulse {
+    width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: livePulse 2s infinite;
+  }
+
+  /* === SECTIONS === */
+  .section { margin-bottom: 48px; }
+  .section-head { margin-bottom: 20px; }
+  .section-title {
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-title .num {
+    font-family: 'JetBrains Mono', monospace;
     font-size: 12px;
+    color: var(--accent);
+    background: rgba(79, 152, 163, 0.15);
+    border: 1px solid rgba(79, 152, 163, 0.3);
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+  }
+  .section-sub {
+    font-size: 13px;
     color: var(--text-mid);
-    line-height: 1.5;
+    margin-top: 4px;
+    max-width: 680px;
   }
 
   /* === APPLIANCE SELECTOR === */
   .selector {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 24px;
-    margin-bottom: 40px;
-  }
-  .selector-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-    gap: 10px;
+    border-radius: 16px;
+    padding: 22px;
   }
   .selector-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 16px;
-    flex-wrap: wrap;
-    gap: 10px;
   }
-  .selector-row h3 {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--text);
-  }
-  .selector-row .quick {
-    display: flex;
-    gap: 6px;
-  }
+  .selector-row h3 { font-size: 14px; font-weight: 700; }
+  .quick { display: flex; gap: 6px; }
   .quick button {
-    background: transparent;
+    background: var(--surface-2);
     border: 1px solid var(--border);
     color: var(--text-mid);
-    padding: 6px 12px;
-    font: inherit;
+    padding: 5px 11px;
     font-size: 11px;
-    font-weight: 600;
-    border-radius: 8px;
-    cursor: pointer;
     font-family: 'JetBrains Mono', monospace;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
   }
   .quick button:hover { color: var(--text); border-color: var(--border-hi); }
+  .selector-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+  }
   .chip {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
     background: var(--surface-2);
     border: 1px solid var(--border);
     border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
     cursor: pointer;
     transition: all 0.15s;
     user-select: none;
   }
   .chip:hover { border-color: var(--border-hi); }
-  .chip.active { border-color: var(--text); background: var(--bg); }
+  .chip.active {
+    background: rgba(109, 170, 69, 0.08);
+    border-color: var(--super);
+  }
   .chip-check {
     width: 18px;
     height: 18px;
-    border-radius: 5px;
+    border-radius: 6px;
     border: 1.5px solid var(--border-hi);
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
     transition: all 0.15s;
+    flex-shrink: 0;
   }
   .chip.active .chip-check {
-    background: var(--text);
-    border-color: var(--text);
+    background: var(--super);
+    border-color: var(--super);
   }
   .chip.active .chip-check::after {
-    content: '';
-    width: 10px;
-    height: 6px;
-    border-left: 2px solid var(--bg);
-    border-bottom: 2px solid var(--bg);
-    transform: rotate(-45deg) translate(1px, -1px);
+    content: '✓';
+    color: var(--bg);
+    font-size: 11px;
+    font-weight: 900;
   }
-  .chip-name { font-size: 14px; font-weight: 600; }
   .chip-icon {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
-    background: var(--border);
-    padding: 4px 8px;
+    background: var(--bg);
+    padding: 4px 7px;
     border-radius: 6px;
-    color: var(--accent);
+    border: 1px solid var(--border);
   }
+  .chip-name { font-size: 13px; font-weight: 600; }
 
-  /* === WORKING HOURS === */
+  /* === SCHEDULE / WORKING HOURS === */
   .work-hours {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 20px;
+    border-radius: 16px;
     padding: 24px;
-    margin-bottom: 40px;
   }
   .wh-head {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
     margin-bottom: 18px;
     gap: 16px;
     flex-wrap: wrap;
   }
-  .wh-title { font-size: 14px; font-weight: 700; }
-  .wh-desc { font-size: 12px; color: var(--text-mid); margin-top: 4px; max-width: 480px; }
+  .wh-title { font-size: 15px; font-weight: 700; }
+  .wh-desc { font-size: 12px; color: var(--text-mid); margin-top: 2px; }
   .wh-toggle {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     gap: 10px;
-    cursor: pointer;
-    font-size: 12px;
-    color: var(--text-mid);
     font-family: 'JetBrains Mono', monospace;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-weight: 600;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
   }
   .switch {
-    width: 34px;
+    width: 36px;
     height: 20px;
+    background: var(--border-hi);
     border-radius: 999px;
-    background: var(--border);
     position: relative;
     transition: background 0.2s;
   }
   .switch::after {
     content: '';
     position: absolute;
-    width: 16px;
-    height: 16px;
+    top: 2px; left: 2px;
+    width: 16px; height: 16px;
     background: var(--text);
     border-radius: 50%;
-    top: 2px;
-    left: 2px;
     transition: transform 0.2s;
   }
-  .wh-toggle.on .switch { background: var(--super); }
-  .wh-toggle.on .switch::after { transform: translateX(14px); }
-
+  .wh-toggle.on .switch { background: var(--accent); }
+  .wh-toggle.on .switch::after { transform: translateX(16px); }
   .wh-inputs {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 14px;
     margin-bottom: 16px;
   }
-  .wh-field { display: flex; flex-direction: column; gap: 8px; }
   .wh-field label {
-    font-size: 11px;
+    display: block;
+    font-size: 10px;
     font-family: 'JetBrains Mono', monospace;
-    color: var(--text-mid);
+    color: var(--text-low);
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
     font-weight: 600;
   }
-  .wh-field input {
-    background: var(--bg);
+  .wh-field input[type="time"] {
+    width: 100%;
+    background: var(--surface-2);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px 14px;
     color: var(--text);
-    font: inherit;
+    padding: 8px 10px;
+    border-radius: 8px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
   }
-  .wh-field input:focus { outline: none; border-color: var(--accent); }
-  .wh-presets { display: flex; gap: 6px; flex-wrap: wrap; }
+  .wh-presets {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
 
-  /* === TIMELINE — THE HERO VIZ === */
+  /* === TIMELINE === */
   .tl-wrap {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 28px;
+    border-radius: 16px;
+    padding: 24px;
     overflow-x: auto;
-    position: relative;
   }
   .tl {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 720px;
+  }
+  .tl-row {
     display: grid;
     grid-template-columns: 200px 1fr;
-    gap: 14px;
-    min-width: 900px;
+    gap: 16px;
     align-items: center;
   }
-  .tl-row { display: contents; }
   .tl-label {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--text);
     display: flex;
     align-items: center;
     gap: 10px;
   }
   .tl-label .ic {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
     background: var(--surface-2);
     border: 1px solid var(--border);
-    color: var(--accent);
     padding: 4px 6px;
     border-radius: 6px;
+    color: var(--accent);
   }
-  .tl-label .nm { display: flex; flex-direction: column; }
-  .tl-label .nm small {
-    font-size: 10px;
-    font-family: 'JetBrains Mono', monospace;
-    color: var(--text-low);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin-top: 2px;
+  .tl-label .nm {
+    font-size: 13px;
     font-weight: 600;
+    line-height: 1.25;
+  }
+  .tl-label .nm small {
+    display: block;
+    font-size: 10px;
+    color: var(--text-low);
+    font-weight: 400;
   }
   .tl-bar {
     display: grid;
     grid-template-columns: repeat(24, 1fr);
-    height: 44px;
+    height: 36px;
     background: var(--bg);
     border-radius: 8px;
     overflow: hidden;
@@ -736,318 +732,175 @@
     border: 1px solid var(--border);
   }
   .tl-cell {
-    border-right: 1px solid rgba(0,0,0,0.25);
-    transition: filter 0.15s;
-    cursor: help;
     position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    transition: opacity 0.15s;
+    cursor: pointer;
   }
-  .tl-cell:last-child { border-right: 0; }
-  .tl-cell.super { background: var(--super); }
-  .tl-cell.off   { background: var(--off); }
-  .tl-cell.peak  { background: var(--peak); }
-  .tl-cell:hover { filter: brightness(1.2); z-index: 3; }
+  .tl-cell.super { background: rgba(109, 170, 69, 0.25); }
+  .tl-cell.off   { background: rgba(232, 175, 52, 0.25); }
+  .tl-cell.peak  { background: rgba(221, 105, 116, 0.35); }
 
-  /* Current hour cell subtle indicator */
-  .tl-cell.current-hour-cell {
-    outline: 2px solid rgba(255, 255, 255, 0.95);
-    outline-offset: -2px;
-    z-index: 4;
-  }
-
-  /* State markers */
-  .tl-cell.recommend::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: repeating-linear-gradient(
-      45deg,
-      rgba(0, 0, 0, 0.18) 0 3px,
-      transparent 3px 6px
-    );
-  }
-  .tl-cell.recommend::before {
-    content: '';
-    position: absolute;
-    bottom: 3px; left: 50%;
-    transform: translateX(-50%);
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.85);
-    z-index: 1;
+  .tl-cell.recommend {
+    box-shadow: inset 0 0 0 2px var(--super);
+    background: rgba(109, 170, 69, 0.55);
   }
   .tl-cell.avoid {
-    background: var(--blackout) !important;
-  }
-  .tl-cell.avoid::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: repeating-linear-gradient(
-      135deg,
-      rgba(221, 105, 116, 0.35) 0 4px,
-      transparent 4px 8px
-    );
-  }
-  .tl-cell.avoid::before {
-    content: '';
-    position: absolute;
-    inset: 20% 38%;
-    border-left: 2px solid var(--peak);
-    border-bottom: 2px solid var(--peak);
-    transform: rotate(-45deg);
+    background: repeating-linear-gradient(45deg, rgba(221, 105, 116, 0.45), rgba(221, 105, 116, 0.45) 4px, rgba(221, 105, 116, 0.15) 4px, rgba(221, 105, 116, 0.15) 8px);
   }
   .tl-cell.unavailable {
-    background: var(--blackout) !important;
-    opacity: 0.85;
+    background: repeating-linear-gradient(45deg, rgba(20, 20, 24, 0.85), rgba(20, 20, 24, 0.85) 4px, rgba(40, 40, 48, 0.5) 4px, rgba(40, 40, 48, 0.5) 8px);
+    opacity: 0.65;
   }
-  .tl-cell.unavailable::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: repeating-linear-gradient(
-      135deg,
-      var(--blackout-stripe) 0 3px,
-      transparent 3px 6px
-    );
-  }
-
-  /* Live needle on timeline bar */
   .tl-now-needle {
     position: absolute;
-    top: 0;
-    bottom: 0;
+    top: 0; bottom: 0;
     width: 2px;
     background: #ffffff;
-    box-shadow: 0 0 8px #ffffff, 0 0 14px var(--accent);
+    box-shadow: 0 0 10px #ffffff;
     z-index: 10;
     pointer-events: none;
-    transform: translateX(-50%);
   }
-  .tl-now-needle::after {
-    content: '';
-    position: absolute;
-    top: -2px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #ffffff;
-    box-shadow: 0 0 8px #ffffff;
-  }
-
   .tl-axis {
     display: grid;
     grid-template-columns: 200px 1fr;
-    gap: 14px;
-    margin-top: 14px;
-    min-width: 900px;
-    position: relative;
+    gap: 16px;
+    margin-top: 8px;
+    min-width: 720px;
   }
-  .tl-axis .ticks {
+  .ticks {
     display: grid;
     grid-template-columns: repeat(24, 1fr);
+    font-family: 'JetBrains Mono', monospace;
     font-size: 10px;
     color: var(--text-low);
-    font-family: 'JetBrains Mono', monospace;
-    font-weight: 600;
     position: relative;
+    padding-top: 4px;
   }
-  .tl-axis .ticks span { text-align: left; padding-left: 2px; }
-
   .tl-axis-now-indicator {
     position: absolute;
+    top: 0;
     transform: translateX(-50%);
-    top: -20px;
     background: #ffffff;
     color: #0b0b0c;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 9px;
     font-weight: 800;
-    padding: 2px 6px;
+    font-size: 9px;
+    padding: 1px 5px;
     border-radius: 4px;
     white-space: nowrap;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
-    z-index: 12;
-    pointer-events: none;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
   }
-
-  /* === LEGEND === */
   .legend {
     display: flex;
-    gap: 24px;
+    gap: 16px;
     flex-wrap: wrap;
-    margin-top: 24px;
-    padding-top: 24px;
+    margin-top: 20px;
+    padding-top: 16px;
     border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-mid);
+    font-family: 'JetBrains Mono', monospace;
   }
-  .legend-item { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text-mid); }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
   .legend-swatch {
-    width: 16px;
-    height: 16px;
-    border-radius: 4px;
-    position: relative;
-    overflow: hidden;
+    width: 12px; height: 12px; border-radius: 3px;
   }
-  .legend-swatch.rec {
-    background: var(--super);
-    background-image: repeating-linear-gradient(45deg, rgba(0,0,0,0.18) 0 3px, transparent 3px 6px);
-  }
-  .legend-swatch.rec::after {
-    content: '';
-    position: absolute;
-    bottom: 3px; left: 50%;
-    transform: translateX(-50%);
-    width: 5px; height: 5px;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.85);
-  }
-  .legend-swatch.avd {
-    background: var(--blackout);
-    background-image: repeating-linear-gradient(135deg, rgba(221, 105, 116, 0.4) 0 3px, transparent 3px 6px);
-  }
-  .legend-swatch.unv {
-    background: var(--blackout);
-    background-image: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0 3px, transparent 3px 6px);
-  }
-  .legend-swatch.now-line {
-    background: #ffffff;
-    width: 4px;
-    height: 16px;
-    box-shadow: 0 0 6px #ffffff;
-  }
+  .legend-swatch.rec { background: rgba(109, 170, 69, 0.55); border: 1.5px solid var(--super); }
+  .legend-swatch.avd { background: repeating-linear-gradient(45deg, var(--peak), var(--peak) 2px, transparent 2px, transparent 4px); }
+  .legend-swatch.unv { background: #2a2a31; }
+  .legend-swatch.now-line { background: #fff; width: 4px; box-shadow: 0 0 6px #fff; }
 
   /* === APPLIANCE CARDS === */
   .app-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 16px;
   }
   .app-card {
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 28px;
-    position: relative;
-    transition: border-color 0.2s, transform 0.2s;
+    border-radius: 16px;
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
   }
-  .app-card:hover { border-color: var(--border-hi); }
   .app-head {
     display: flex;
-    align-items: flex-start;
     justify-content: space-between;
-    margin-bottom: 22px;
+    align-items: flex-start;
     gap: 12px;
   }
-  .app-head-l { display: flex; align-items: flex-start; gap: 14px; }
-  .app-icon-big {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 14px;
-    font-weight: 800;
-    color: var(--accent);
-    width: 46px;
-    height: 46px;
+  .app-head-l {
     display: flex;
     align-items: center;
-    justify-content: center;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    flex-shrink: 0;
+    gap: 12px;
   }
-  .app-name-big {
-    font-size: 20px;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    line-height: 1.1;
-  }
-  .app-meta {
-    font-size: 11px;
-    color: var(--text-low);
+  .app-icon-big {
     font-family: 'JetBrains Mono', monospace;
-    margin-top: 4px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    font-weight: 600;
+    font-size: 12px;
+    font-weight: 700;
+    background: rgba(79, 152, 163, 0.15);
+    border: 1px solid rgba(79, 152, 163, 0.3);
+    color: var(--accent);
+    padding: 8px 10px;
+    border-radius: 10px;
   }
-
-  /* Live status chip in card */
+  .app-name-big { font-size: 16px; font-weight: 700; }
+  .app-meta { font-size: 11px; color: var(--text-mid); font-family: 'JetBrains Mono', monospace; }
   .app-status-badge {
+    margin-top: 4px;
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-family: 'JetBrains Mono', monospace;
     font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    padding: 3px 9px;
+    padding: 2px 8px;
     border-radius: 999px;
-    margin-top: 8px;
   }
   .app-status-badge.status-best {
     background: rgba(109, 170, 69, 0.15);
     color: var(--super);
     border: 1px solid rgba(109, 170, 69, 0.4);
   }
-  .app-status-badge.status-best .dot {
-    width: 6px; height: 6px; border-radius: 50%; background: var(--super); box-shadow: 0 0 6px var(--super);
-  }
   .app-status-badge.status-mid {
     background: rgba(232, 175, 52, 0.15);
     color: var(--off);
     border: 1px solid rgba(232, 175, 52, 0.4);
-  }
-  .app-status-badge.status-mid .dot {
-    width: 6px; height: 6px; border-radius: 50%; background: var(--off);
   }
   .app-status-badge.status-avoid {
     background: rgba(221, 105, 116, 0.15);
     color: var(--peak);
     border: 1px solid rgba(221, 105, 116, 0.4);
   }
-  .app-status-badge.status-avoid .dot {
-    width: 6px; height: 6px; border-radius: 50%; background: var(--peak); box-shadow: 0 0 6px var(--peak);
-  }
   .app-status-badge.status-unav {
     background: rgba(107, 106, 103, 0.15);
     color: var(--text-mid);
     border: 1px solid var(--border);
   }
-  .app-status-badge.status-unav .dot {
-    width: 6px; height: 6px; border-radius: 50%; background: var(--text-mid);
+  .app-status-badge .dot {
+    width: 6px; height: 6px; border-radius: 50%; background: currentColor;
   }
-
-  .app-save {
-    text-align: right;
-    flex-shrink: 0;
-  }
+  .app-save { text-align: right; }
   .app-save .num {
     font-size: 22px;
     font-weight: 900;
     font-family: 'JetBrains Mono', monospace;
     color: var(--super);
-    letter-spacing: -0.02em;
   }
   .app-save .sub {
     font-size: 9px;
     color: var(--text-low);
     text-transform: uppercase;
-    letter-spacing: 0.1em;
     font-family: 'JetBrains Mono', monospace;
-    font-weight: 600;
   }
-
-  .windows { display: flex; flex-direction: column; gap: 10px; }
+  .windows { display: flex; flex-direction: column; gap: 8px; }
   .win {
     display: grid;
-    grid-template-columns: 60px 1fr;
-    gap: 14px;
-    padding: 14px 16px;
-    border-radius: 12px;
+    grid-template-columns: 50px 1fr;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
     border-left: 3px solid var(--c);
     background: var(--surface-2);
     align-items: center;
@@ -1060,98 +913,502 @@
     font-family: 'JetBrains Mono', monospace;
     font-size: 10px;
     font-weight: 700;
-    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--c);
   }
-  .win-body { display: flex; flex-direction: column; gap: 4px; }
+  .win-body { display: flex; flex-direction: column; gap: 2px; }
   .win-time {
     font-family: 'JetBrains Mono', monospace;
     font-weight: 700;
-    font-size: 13px;
+    font-size: 12px;
     color: var(--text);
-    line-height: 1.3;
   }
-  .win-note { font-size: 12px; color: var(--text-mid); line-height: 1.4; }
+  .win-note { font-size: 11px; color: var(--text-mid); line-height: 1.35; }
 
-  /* === SAVINGS === */
-  .savings-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 32px;
+  /* SECTION 5 & 6 RELOCATION NOTICE IN MAIN FLOW */
+  .relocation-banner {
+    background: linear-gradient(135deg, rgba(79, 152, 163, 0.08), rgba(19, 19, 22, 0.9));
+    border: 1px dashed var(--accent);
+    border-radius: 16px;
+    padding: 24px 28px;
+    margin-bottom: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
   }
-  .savings-hero {
+  .relocation-banner-text h3 {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .relocation-banner-text p {
+    font-size: 13px;
+    color: var(--text-mid);
+    max-width: 680px;
+  }
+
+  /* === FLOATING LEFT PANEL (50% VIEWPORT HEIGHT, MIDDLE ALIGNED) === */
+  .floating-left-panel {
+    position: fixed;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 390px;
+    max-width: calc(100vw - 40px);
+    height: 50vh;
+    max-height: 50vh;
+    background: rgba(17, 17, 21, 0.95);
+    border: 1px solid var(--border-hi);
+    border-radius: 18px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s;
+  }
+  .floating-left-panel.collapsed {
+    transform: translateY(-50%) translateX(calc(-100% - 30px));
+    pointer-events: none;
+    opacity: 0;
+  }
+  .flp-toggle-tab {
+    position: fixed;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(22, 22, 28, 0.95);
+    border: 1px solid var(--border-hi);
+    border-left: 0;
+    border-radius: 0 10px 10px 0;
+    padding: 12px 7px;
+    color: var(--text-mid);
+    cursor: pointer;
+    z-index: 999;
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    transition: all 0.2s;
+  }
+  .flp-toggle-tab:hover {
+    background: var(--surface);
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  .flp-tab-vertical-text {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+  }
+
+  .flp-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: rgba(26, 26, 32, 0.85);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .flp-header-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .flp-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    background: rgba(79, 152, 163, 0.2);
+    color: var(--accent);
+    border: 1px solid rgba(79, 152, 163, 0.4);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .flp-min-btn {
+    background: transparent;
+    border: 0;
+    color: var(--text-mid);
+    font-size: 16px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 2px 4px;
+  }
+  .flp-min-btn:hover { color: var(--text); }
+
+  /* Section 5: Monthly Impact in Left Panel (Takes up most of the panel) */
+  .flp-savings-wrap {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 12px 14px;
+    min-height: 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-hi) transparent;
+  }
+  .flp-impact-hero {
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
-    margin-bottom: 32px;
-    gap: 24px;
-    flex-wrap: wrap;
-    padding-bottom: 28px;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
     border-bottom: 1px solid var(--border);
   }
-  .savings-num {
-    font-size: clamp(60px, 8.5vw, 108px);
+  .flp-impact-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 34px;
     font-weight: 900;
-    font-family: 'JetBrains Mono', monospace;
+    line-height: 1;
     color: var(--super);
-    letter-spacing: -0.05em;
-    line-height: 0.9;
+    letter-spacing: -0.04em;
   }
-  .savings-num .sm { font-size: 0.4em; color: var(--text-mid); margin-right: 6px; vertical-align: 12%; }
-  .savings-label {
-    font-size: 12px;
+  .flp-impact-sub {
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
     color: var(--text-mid);
-    font-family: 'JetBrains Mono', monospace;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
-    font-weight: 600;
-    margin-top: 6px;
+    letter-spacing: 0.08em;
+    margin-top: 4px;
   }
-  .savings-side {
-    text-align: right;
-  }
-  .savings-side .row {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
-    margin-bottom: 6px;
-    display: flex;
-    gap: 16px;
-    justify-content: flex-end;
-    align-items: baseline;
-  }
-  .savings-side .row .k { color: var(--text-low); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
-  .savings-side .row .v { color: var(--text); font-weight: 700; font-size: 18px; }
-
-  .savings-table {
+  .flp-savings-table {
     width: 100%;
     border-collapse: collapse;
     font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
   }
-  .savings-table th {
+  .flp-savings-table th {
     text-align: left;
-    font-size: 10px;
+    font-size: 9px;
     color: var(--text-low);
     text-transform: uppercase;
-    letter-spacing: 0.1em;
-    padding: 10px 0;
-    font-weight: 600;
+    letter-spacing: 0.08em;
+    padding: 6px 0;
     border-bottom: 1px solid var(--border);
   }
-  .savings-table th.r { text-align: right; }
-  .savings-table td {
-    padding: 14px 0;
-    border-bottom: 1px solid var(--border);
+  .flp-savings-table th.r { text-align: right; }
+  .flp-savings-table td {
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(42, 42, 49, 0.6);
+  }
+  .flp-savings-table td.r { text-align: right; font-weight: 700; }
+  .flp-savings-table td.d { color: var(--super); }
+
+  /* Section 6: Cloudflare R2 Upload & File Vault in Left Panel (At the bottom) */
+  .flp-r2-wrap {
+    flex: 0 0 auto;
+    border-top: 1px solid var(--border);
+    background: rgba(14, 14, 18, 0.85);
+    padding: 10px 14px;
+    max-height: 175px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-hi) transparent;
+  }
+  .flp-r2-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .flp-r2-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .flp-r2-actions {
+    display: flex;
+    gap: 4px;
+  }
+  .flp-dropzone {
+    border: 1px dashed var(--border-hi);
+    border-radius: 8px;
+    padding: 8px;
+    text-align: center;
+    background: var(--bg);
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 8px;
+  }
+  .flp-dropzone:hover, .flp-dropzone.dragover {
+    border-color: var(--accent);
+    background: rgba(79, 152, 163, 0.08);
+  }
+  .flp-drop-text {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 10px;
+    color: var(--text-mid);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .flp-drop-icon {
+    font-weight: 900;
+    color: var(--accent);
+  }
+  .flp-file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .flp-file-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+
+  /* === FLOATING LIQUID GLASS AI CHAT WIDGET (CLOUDFLARE AI GATEWAY + GLM-5.3) === */
+  .floating-ai-pill {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    background: rgba(22, 22, 28, 0.88);
+    border: 1px solid rgba(79, 152, 163, 0.45);
+    border-radius: 999px;
+    padding: 10px 18px;
+    color: var(--text);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(79, 152, 163, 0.2);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    cursor: pointer;
+    z-index: 1001;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .floating-ai-pill:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 35px rgba(0, 0, 0, 0.7), 0 0 25px rgba(79, 152, 163, 0.35);
+  }
+  .ai-pill-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    animation: livePulse 2s infinite ease-in-out;
+  }
+
+  .floating-ai-widget {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    width: 380px;
+    max-width: calc(100vw - 32px);
+    height: 520px;
+    max-height: calc(100vh - 48px);
+    background: rgba(18, 18, 23, 0.82);
+    backdrop-filter: blur(28px) saturate(200%);
+    -webkit-backdrop-filter: blur(28px) saturate(200%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    box-shadow:
+      0 24px 60px rgba(0, 0, 0, 0.75),
+      inset 0 1px 0 rgba(255, 255, 255, 0.15),
+      0 0 30px rgba(79, 152, 163, 0.15);
+    z-index: 1002;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+  }
+  .floating-ai-widget.collapsed {
+    display: none !important;
+  }
+  .ai-widget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px;
+    background: rgba(26, 26, 32, 0.7);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
+  }
+  .ai-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .ai-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: rgba(79, 152, 163, 0.25);
+    border: 1px solid rgba(79, 152, 163, 0.4);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 13px;
+  }
+  .ai-title {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+  .ai-subtitle {
+    font-size: 10px;
+    color: var(--text-mid);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .ai-header-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .ai-icon-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-mid);
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.15s;
+  }
+  .ai-icon-btn:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .ai-chips-scroll {
+    display: flex;
+    gap: 6px;
+    padding: 8px 12px;
+    overflow-x: auto;
+    background: rgba(14, 14, 18, 0.5);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    scrollbar-width: none;
+    flex-shrink: 0;
+  }
+  .ai-chips-scroll::-webkit-scrollbar { display: none; }
+  .ai-chip {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--text-mid);
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .ai-chip:hover {
+    background: rgba(79, 152, 163, 0.2);
+    border-color: var(--accent);
     color: var(--text);
   }
-  .savings-table td.r { text-align: right; font-weight: 700; }
-  .savings-table td.d { color: var(--super); font-weight: 700; }
-  .savings-table .name { font-family: 'Satoshi', sans-serif; font-weight: 600; }
-  .savings-table tr:last-child td { border-bottom: 0; }
 
-  /* === RATE CUSTOMIZER MODAL === */
+  .ai-chat-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-hi) transparent;
+  }
+  .ai-msg {
+    max-width: 88%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    animation: msgFade 0.2s ease-out;
+  }
+  @keyframes msgFade {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .ai-msg.user {
+    align-self: flex-end;
+    background: var(--surface-2);
+    border: 1px solid var(--border-hi);
+    color: var(--text);
+  }
+  .ai-msg.assistant {
+    align-self: flex-start;
+    background: rgba(30, 30, 38, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+  .ai-msg.assistant strong { color: var(--super); }
+
+  .ai-chat-footer {
+    display: flex;
+    gap: 8px;
+    padding: 12px 14px;
+    background: rgba(22, 22, 28, 0.9);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
+  }
+  .ai-input {
+    flex: 1;
+    background: rgba(11, 11, 14, 0.8);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-size: 12px;
+    font-family: inherit;
+  }
+  .ai-input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .ai-send-btn {
+    background: var(--text);
+    color: var(--bg);
+    border: 0;
+    border-radius: 8px;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    flex-shrink: 0;
+  }
+  .ai-send-btn:hover { opacity: 0.88; }
+
+  /* === MODALS === */
   .modal-overlay {
     position: fixed;
     inset: 0;
@@ -1163,18 +1420,15 @@
     z-index: 2000;
     padding: 20px;
   }
-  .modal-overlay.open {
-    display: flex;
-  }
+  .modal-overlay.open { display: flex; }
   .modal-box {
     background: var(--surface);
     border: 1px solid var(--border-hi);
     border-radius: 20px;
-    max-width: 600px;
+    max-width: 580px;
     width: 100%;
-    padding: 32px;
+    padding: 30px;
     box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
-    position: relative;
     max-height: 90vh;
     overflow-y: auto;
   }
@@ -1185,17 +1439,8 @@
     margin-bottom: 16px;
     gap: 16px;
   }
-  .modal-title {
-    font-size: 20px;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-  }
-  .modal-subtitle {
-    font-size: 13px;
-    color: var(--text-mid);
-    margin-top: 4px;
-    line-height: 1.5;
-  }
+  .modal-title { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; }
+  .modal-subtitle { font-size: 13px; color: var(--text-mid); margin-top: 4px; line-height: 1.5; }
   .modal-close {
     background: transparent;
     border: 0;
@@ -1217,7 +1462,7 @@
   }
   .modal-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: 12px;
   }
   .modal-field {
@@ -1236,10 +1481,10 @@
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 10px 12px;
+    padding: 9px 12px;
     color: var(--text);
     font-family: 'JetBrains Mono', monospace;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
   }
   .modal-field input:focus {
@@ -1250,204 +1495,12 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 28px;
+    margin-top: 26px;
     padding-top: 20px;
     border-top: 1px solid var(--border);
     gap: 12px;
     flex-wrap: wrap;
   }
-
-  /* === CLOUDFLARE R2 VAULT === */
-  .r2-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 32px;
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
-    position: relative;
-    overflow: hidden;
-  }
-  .r2-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-    gap: 16px;
-    flex-wrap: wrap;
-    padding-bottom: 20px;
-    border-bottom: 1px solid var(--border);
-  }
-  .r2-head-left {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
-  .r2-icon-wrap {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    background: rgba(79, 152, 163, 0.12);
-    border: 1px solid rgba(79, 152, 163, 0.3);
-    color: var(--accent);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .r2-title {
-    font-size: 18px;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-  }
-  .r2-meta {
-    font-size: 12px;
-    color: var(--text-mid);
-    margin-top: 3px;
-    font-family: 'JetBrains Mono', monospace;
-  }
-  .r2-dropzone {
-    border: 2px dashed var(--border-hi);
-    border-radius: 16px;
-    padding: 36px 24px;
-    text-align: center;
-    background: var(--bg);
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-  .r2-dropzone:hover, .r2-dropzone.dragover {
-    border-color: var(--accent);
-    background: rgba(79, 152, 163, 0.05);
-  }
-  .r2-upload-icon {
-    color: var(--accent);
-    margin-bottom: 12px;
-    opacity: 0.9;
-  }
-  .r2-drop-title {
-    font-size: 15px;
-    font-weight: 700;
-    margin-bottom: 6px;
-  }
-  .r2-drop-sub {
-    font-size: 12px;
-    color: var(--text-mid);
-    margin-bottom: 18px;
-    font-family: 'JetBrains Mono', monospace;
-  }
-  .r2-progress-wrap {
-    margin-top: 20px;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 16px 20px;
-  }
-  .r2-progress-head {
-    display: flex;
-    justify-content: space-between;
-    font-size: 12px;
-    font-family: 'JetBrains Mono', monospace;
-    margin-bottom: 8px;
-    font-weight: 600;
-  }
-  .r2-progress-bar {
-    height: 6px;
-    background: var(--border);
-    border-radius: 999px;
-    overflow: hidden;
-  }
-  .r2-progress-fill {
-    height: 100%;
-    background: var(--accent);
-    box-shadow: 0 0 10px var(--accent);
-    transition: width 0.3s ease;
-  }
-  .r2-vault-list-wrap {
-    margin-top: 28px;
-    padding-top: 24px;
-    border-top: 1px solid var(--border);
-  }
-  .r2-vault-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 16px;
-  }
-  .r2-vault-title {
-    font-size: 13px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-family: 'JetBrains Mono', monospace;
-    color: var(--text-mid);
-  }
-  .r2-file-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  .r2-file-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 14px 18px;
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    gap: 16px;
-    flex-wrap: wrap;
-    transition: border-color 0.15s;
-  }
-  .r2-file-item:hover {
-    border-color: var(--border-hi);
-  }
-  .r2-file-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  .r2-file-badge {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    background: rgba(79, 152, 163, 0.15);
-    color: var(--accent);
-    padding: 4px 8px;
-    border-radius: 6px;
-  }
-  .r2-file-name {
-    font-size: 13px;
-    font-weight: 600;
-  }
-  .r2-file-meta {
-    font-size: 11px;
-    color: var(--text-low);
-    font-family: 'JetBrains Mono', monospace;
-    margin-top: 2px;
-  }
-  .r2-file-actions {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
-  .r2-empty {
-    text-align: center;
-    padding: 32px;
-    color: var(--text-low);
-    font-size: 13px;
-    font-family: 'JetBrains Mono', monospace;
-  }
-
-  /* Footer */
-  .footer {
-    margin-top: 80px;
-    padding-top: 28px;
-    border-top: 1px solid var(--border);
-    color: var(--text-low);
-    font-size: 12px;
-    line-height: 1.7;
-  }
-  .footer a { color: var(--text-mid); text-decoration: none; border-bottom: 1px dotted var(--text-low); }
-  .footer a:hover { color: var(--accent); border-color: var(--accent); }
 
   /* Tooltip */
   .tt {
@@ -1468,19 +1521,125 @@
   }
   .tt.show { opacity: 1; }
 
+  /* === FOOTER WITH 'v2.0' AND 'last updated at:' === */
+  .footer {
+    margin-top: 60px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    color: var(--text-low);
+    font-size: 12px;
+    line-height: 1.7;
+  }
+  .footer-status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid rgba(42, 42, 49, 0.6);
+  }
+  .footer-time-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-mid);
+  }
+  .footer-time-text span {
+    color: var(--text);
+    font-weight: 600;
+  }
+  .v2-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 800;
+    background: rgba(79, 152, 163, 0.2);
+    border: 1px solid rgba(79, 152, 163, 0.45);
+    color: var(--accent);
+    padding: 3px 9px;
+    border-radius: 999px;
+    letter-spacing: 0.06em;
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+  }
+
+  /* === FLOATING FOOTER STATUS BAR (STICKS ON SCROLL) === */
+  .floating-status-bar {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(19, 19, 22, 0.94);
+    border: 1px solid var(--border-hi);
+    border-radius: 999px;
+    padding: 7px 14px 7px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 999;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    max-width: calc(100vw - 32px);
+    font-size: 12px;
+    animation: statusFadeIn 0.35s ease-out;
+  }
+  @keyframes statusFadeIn {
+    from { opacity: 0; transform: translate(-50%, 15px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+  }
+  .floating-status-text {
+    color: var(--text-mid);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .floating-status-text span {
+    color: var(--text);
+    font-weight: 600;
+  }
+  .floating-status-close {
+    background: transparent;
+    border: 0;
+    color: var(--text-low);
+    font-size: 17px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 2px 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .floating-status-close:hover { color: var(--text); }
+
   @media (max-width: 768px) {
-    .container { padding: 32px 16px 60px; }
-    .controls { padding: 16px; }
-    .tl { grid-template-columns: 140px 1fr; }
-    .tl-axis { grid-template-columns: 140px 1fr; }
-    .live-hud { padding: 20px; }
-    .controls-actions { margin-left: 0; width: 100%; }
+    .container { padding: 24px 16px 60px; }
+    .floating-left-panel { left: 10px; width: calc(100vw - 20px); height: 55vh; max-height: 55vh; }
+    .floating-ai-widget { right: 10px; bottom: 10px; width: calc(100vw - 20px); height: 480px; }
+    .floating-status-bar { border-radius: 14px; padding: 10px 14px; gap: 8px; flex-wrap: wrap; justify-content: center; }
   }
 </style>
 </head>
 <body>
+
+<!-- TOP NAV / BANNER -->
+<header class="top-bar">
+  <div class="top-bar-left">
+    <span class="top-badge">⚡ TOU Optimizer v2.0</span>
+    <span class="top-bar-desc">50% Viewport Floating Impact &amp; Vault Panel + Liquid Glass GLM-5.3 AI Copilot</span>
+  </div>
+  <div class="top-bar-right">
+    <span>last updated at: <span id="topLastUpdated">Sep 24, 2026 · 11:20 PM PDT</span></span>
+  </div>
+</header>
+
 <div class="container">
 
+  <!-- HERO -->
   <header class="hero">
     <div class="hero-eyebrow-row">
       <div class="eyebrow"><span class="dot"></span>SDG&amp;E Live Rates &amp; TOU Optimizer</div>
@@ -1491,7 +1650,7 @@
       <span class="accent">electrons are cheap.</span><br>
       <span class="quiet">Not when they aren't.</span>
     </h1>
-    <p class="lede">A real-time map of San Diego's time-of-use rates and household appliances. Live rate tracking, countdown to the next price shift, and printable operating schedules.</p>
+    <p class="lede">A real-time map of San Diego's time-of-use rates and household appliances. Section 05 &amp; 06 are accessible anytime via the floating middle panel on your left, while GLM-5.3 AI guides your load shifting on the right.</p>
   </header>
 
   <!-- LIVE RATE HUD -->
@@ -1541,7 +1700,7 @@
     </div>
   </div>
 
-  <!-- Controls Bar -->
+  <!-- CONTROLS BAR -->
   <div class="controls">
     <div class="controls-group">
       <div class="controls-label">Pricing Plan</div>
@@ -1589,7 +1748,7 @@
   <!-- RATES -->
   <div class="rate-grid" id="rateGrid"></div>
 
-  <!-- APPLIANCE SELECTOR -->
+  <!-- SECTION 01: APPLIANCE SELECTOR -->
   <div class="section">
     <div class="section-head">
       <h2 class="section-title"><span class="num">01</span>Your appliances</h2>
@@ -1607,7 +1766,7 @@
     </div>
   </div>
 
-  <!-- WORKING HOURS -->
+  <!-- SECTION 02: SCHEDULE & WORKING HOURS -->
   <div class="section">
     <div class="section-head">
       <h2 class="section-title"><span class="num">02</span>Your schedule</h2>
@@ -1662,7 +1821,7 @@
     </div>
   </div>
 
-  <!-- TIMELINE -->
+  <!-- SECTION 03: TIMELINE -->
   <div class="section">
     <div class="section-head">
       <h2 class="section-title"><span class="num">03</span>24-hour map</h2>
@@ -1686,7 +1845,7 @@
     </div>
   </div>
 
-  <!-- APPLIANCE CARDS -->
+  <!-- SECTION 04: APPLIANCE CARDS -->
   <div class="section">
     <div class="section-head">
       <h2 class="section-title"><span class="num">04</span>How to run each load</h2>
@@ -1695,96 +1854,139 @@
     <div class="app-grid" id="applianceGrid"></div>
   </div>
 
-  <!-- SAVINGS -->
-  <div class="section">
-    <div class="section-head">
-      <h2 class="section-title"><span class="num">05</span>Monthly impact</h2>
-      <p class="section-sub">Comparing an uncontrolled schedule against full TOU optimization for your selected appliances.</p>
+  <!-- RELOCATION BANNER (SECTIONS 05 & 06 ARE IN THE FLOATING LEFT PANEL) -->
+  <div class="relocation-banner">
+    <div class="relocation-banner-text">
+      <h3>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--accent);"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        Looking for Monthly Impact (05) &amp; Cloudflare R2 Storage (06)?
+      </h3>
+      <p>They are active in your <strong>50% Floating Left Panel</strong> so your live dollar impact and R2 file uploads stay in view while tuning schedules. Open or collapse it with the left tab anytime.</p>
     </div>
-    <div class="savings-card" id="savings"></div>
+    <button class="btn ghost btn-sm" onclick="document.getElementById('floatingLeftPanel').classList.remove('collapsed');">
+      Focus Left Panel &larr;
+    </button>
   </div>
 
-  <!-- CLOUDFLARE R2 BILL & SCHEDULE VAULT -->
-  <div class="section">
-    <div class="section-head">
-      <h2 class="section-title"><span class="num">06</span>Cloudflare R2 storage</h2>
-      <p class="section-sub">Upload your SDG&amp;E billing statements, interval meter CSVs, or schedule snapshots directly to your Cloudflare R2 zero-egress bucket.</p>
-    </div>
-    <div class="r2-card">
-      <div class="r2-head">
-        <div class="r2-head-left">
-          <div class="r2-icon-wrap">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/><polyline points="12 12 12 16 12 12"/><polyline points="9 13 12 10 15 13"/></svg>
-          </div>
-          <div>
-            <div class="r2-title">Bill &amp; Schedule Vault</div>
-            <div class="r2-meta">Zero-Egress Object Storage · Cloudflare R2</div>
-          </div>
-        </div>
-        <div class="r2-endpoint-config">
-          <button class="btn ghost btn-sm" id="r2ConfigBtn" title="Configure Cloudflare Worker upload URL">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            <span id="r2StatusBadge">Worker: /api/upload</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Drag & Drop Zone -->
-      <div class="r2-dropzone" id="r2Dropzone">
-        <input type="file" id="r2FileInput" style="display:none;" multiple accept=".pdf,.csv,.json,.png,.jpg,.jpeg">
-        <div class="r2-drop-content">
-          <div class="r2-upload-icon">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          </div>
-          <div class="r2-drop-title">Drop SDG&amp;E bills, interval CSVs, or schedule exports here</div>
-          <div class="r2-drop-sub">PDF, CSV, JSON, PNG up to 50MB · Uploads securely to your Cloudflare R2 bucket</div>
-          <button class="btn" type="button" id="r2SelectBtn">Browse Files</button>
-        </div>
-      </div>
-
-      <!-- Upload Progress -->
-      <div class="r2-progress-wrap" id="r2ProgressWrap" style="display:none;">
-        <div class="r2-progress-head">
-          <span id="r2ProgressLabel">Uploading to R2...</span>
-          <span id="r2ProgressPct">0%</span>
-        </div>
-        <div class="r2-progress-bar">
-          <div class="r2-progress-fill" id="r2ProgressFill" style="width: 0%;"></div>
-        </div>
-      </div>
-
-      <!-- Uploaded Files List -->
-      <div class="r2-vault-list-wrap">
-        <div class="r2-vault-head">
-          <div class="r2-vault-title">Vault Files</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn ghost btn-sm" id="r2BackupBtn" title="Backup your current appliances & schedule to R2">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-              Backup Schedule
-            </button>
-            <button class="btn ghost btn-sm" id="r2SampleBtn" title="Load sample SDG&E Green Button interval data">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              Load Sample Bill Data
-            </button>
-            <button class="btn ghost btn-sm" id="r2RefreshBtn">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19"/></svg>
-              Refresh
-            </button>
-          </div>
-        </div>
-        <div class="r2-file-list" id="r2FileList">
-          <div class="r2-empty">No files uploaded yet. Drag and drop bills or schedules above to store in your R2 bucket.</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
+  <!-- FOOTER -->
   <footer class="footer">
-    <strong style="color:var(--text-mid)">Source:</strong> SDG&amp;E Schedule TOU-DR1, EV-TOU-5, and TOU-DR2 residential tariffs. Rates effective 2026. On-Peak is 4–9 p.m. daily. Super Off-Peak weekday hours: 12 a.m.–6 a.m. and 10 a.m.–2 p.m. (expanded year-round as of May 1, 2025/2026).<br>
-    References: <a href="https://www.sdge.com/super-off-peak-residential" target="_blank">SDG&amp;E Extended Super Off-Peak</a> · <a href="https://www.sdge.com/residential/pricing-plans" target="_blank">Residential Pricing Plans</a> · <a href="https://www.sdge.com/rates-and-regulations/current-and-effective-tariffs" target="_blank">Current Effective Tariffs</a> · <a href="https://sdcommunitypower.org" target="_blank">San Diego Community Power (SDCP)</a>.<br>
-    Savings estimates are illustrative; actual savings depend on baseline allocation, CARE eligibility, and household kWh usage.
+    <div class="footer-status-bar">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span class="v2-badge">v2.0</span>
+        <span class="footer-time-text">last updated at: <span id="footerUpdatedAt">September 24, 2026 · 11:20 PM PDT</span></span>
+      </div>
+      <div style="font-size:11px;color:var(--text-low);font-family:'JetBrains Mono',monospace;">
+        SDG&amp;E Schedule TOU-DR1 · EV-TOU-5 · TOU-DR2 · 2026 Tariffs
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--text-low);line-height:1.6;">
+      Source: SDG&amp;E effective tariffs. On-Peak 4–9 p.m. daily. Super Off-Peak weekday hours: 12 a.m.–6 a.m. &amp; 10 a.m.–2 p.m. References: <a href="https://www.sdge.com/super-off-peak-residential" target="_blank">SDG&amp;E Extended Super Off-Peak</a> · <a href="https://www.sdge.com/rates-and-regulations/current-and-effective-tariffs" target="_blank">Current Effective Tariffs</a> · <a href="https://sdcommunitypower.org" target="_blank">SDCP</a>.
+    </div>
   </footer>
 </div>
+
+<!-- ========================================================= -->
+<!-- FLOATING LEFT PANEL (50% VIEWPORT HEIGHT, MIDDLE ALIGNED) -->
+<!-- ========================================================= -->
+<button class="flp-toggle-tab" id="flpToggleTab" title="Toggle 50% Impact &amp; R2 Panel">
+  <span>◀</span>
+  <span class="flp-tab-vertical-text">IMPACT &amp; VAULT</span>
+</button>
+
+<aside class="floating-left-panel" id="floatingLeftPanel">
+  <div class="flp-header">
+    <div class="flp-header-title">
+      <span class="flp-badge">50% VIEWPORT</span>
+      <span>Monthly Impact &amp; Vault</span>
+    </div>
+    <button class="flp-min-btn" id="flpMinimizeBtn" title="Minimize Panel">&times;</button>
+  </div>
+
+  <!-- SECTION 05: Monthly Impact (takes up most of the panel) -->
+  <div class="flp-savings-wrap" id="flpSavingsContainer">
+    <!-- Populated dynamically by renderFloatingPanelSavings() in app.js -->
+  </div>
+
+  <!-- SECTION 06: Cloudflare R2 Upload & File Vault (at the bottom) -->
+  <div class="flp-r2-wrap">
+    <div class="flp-r2-head">
+      <div class="flp-r2-title">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/><polyline points="12 12 12 16 12 12"/><polyline points="9 13 12 10 15 13"/></svg>
+        <span>Cloudflare R2 Vault</span>
+      </div>
+      <div class="flp-r2-actions">
+        <button class="btn ghost btn-mini" id="flpBackupBtn" title="Backup schedule snapshot to R2">Backup</button>
+        <button class="btn ghost btn-mini" id="flpSampleBtn" title="Load sample bill CSV">Sample</button>
+        <button class="btn ghost btn-mini" id="flpRefreshBtn" title="Refresh files from R2">↺</button>
+      </div>
+    </div>
+
+    <!-- Drag & drop zone -->
+    <div class="flp-dropzone" id="flpDropzone">
+      <input type="file" id="flpFileInput" style="display:none;" multiple accept=".pdf,.csv,.json,.png,.jpg,.jpeg">
+      <div class="flp-drop-text">
+        <span class="flp-drop-icon">↑</span>
+        <span>Drop bills / CSVs to R2</span>
+      </div>
+    </div>
+
+    <!-- Uploaded file items -->
+    <div class="flp-file-list" id="flpFileList">
+      <!-- Populated dynamically by renderR2FileList() in app.js -->
+    </div>
+  </div>
+</aside>
+
+<!-- ========================================================================= -->
+<!-- FLOATING LIQUID GLASS AI CHAT WIDGET (CLOUDFLARE AI GATEWAY + GLM-5.3) -->
+<!-- ========================================================================= -->
+<button class="floating-ai-pill" id="aiPillToggle" title="Open GLM-5.3 Energy Copilot">
+  <span class="ai-pill-dot"></span>
+  <span>⚡ Energy AI (GLM-5.3)</span>
+</button>
+
+<aside class="floating-ai-widget collapsed" id="floatingAIWidget">
+  <div class="ai-widget-header">
+    <div class="ai-header-left">
+      <div class="ai-avatar">⚡</div>
+      <div>
+        <div class="ai-title">Energy Copilot</div>
+        <div class="ai-subtitle">Cloudflare AI Gateway · GLM-5.3</div>
+      </div>
+    </div>
+    <div class="ai-header-actions">
+      <button class="ai-icon-btn" id="aiConfigBtn" title="Configure Cloudflare AI Gateway &amp; Model">⚙</button>
+      <button class="ai-icon-btn" id="aiClearBtn" title="Clear Chat History">↺</button>
+      <button class="ai-icon-btn" id="aiCollapseBtn" title="Minimize Chat">&minus;</button>
+    </div>
+  </div>
+
+  <!-- Prompt chips -->
+  <div class="ai-chips-scroll">
+    <button class="ai-chip" data-prompt="When is the absolute cheapest time to charge my EV?">⚡ EV Charging</button>
+    <button class="ai-chip" data-prompt="What is the best time to run the dishwasher today?">🍽️ Dishwasher</button>
+    <button class="ai-chip" data-prompt="How should I run my A/C to avoid peak rates?">❄️ A/C Pre-cool</button>
+    <button class="ai-chip" data-prompt="What are the current SDG&E rates and peak window?">📊 Current Rates</button>
+    <button class="ai-chip" data-prompt="Estimate my total monthly savings with my selected loads">💰 Monthly Savings</button>
+  </div>
+
+  <!-- Messages scroll area -->
+  <div class="ai-chat-body" id="aiChatBody">
+    <!-- Populated dynamically by renderAIMessages() in app.js -->
+  </div>
+
+  <!-- Input bar -->
+  <div class="ai-chat-footer">
+    <input type="text" class="ai-input" id="aiInput" placeholder="Ask GLM-5.3 about rates, loads, timing...">
+    <button class="ai-send-btn" id="aiSendBtn" title="Send message">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </button>
+  </div>
+</aside>
+
+<!-- ========================================================= -->
+<!-- MODALS -->
+<!-- ========================================================= -->
 
 <!-- RATE CUSTOMIZER MODAL -->
 <div class="modal-overlay" id="rateModal">
@@ -1839,159 +2041,66 @@
   </div>
 </div>
 
-<!-- CLOUDFLARE R2 CONFIG MODAL -->
-<div class="modal-overlay" id="r2ConfigModal">
+<!-- CLOUDFLARE AI GATEWAY CONFIG MODAL -->
+<div class="modal-overlay" id="aiConfigModal">
   <div class="modal-box">
     <div class="modal-head">
       <div>
-        <div class="modal-title">Cloudflare R2 Worker Endpoint</div>
-        <div class="modal-subtitle">Connect your Cloudflare Worker or Pages Function URL to store bills &amp; schedules directly in your private R2 bucket.</div>
+        <div class="modal-title">Cloudflare AI Gateway Config</div>
+        <div class="modal-subtitle">Connect your Cloudflare AI Gateway endpoint running GLM-5.3 for accelerated, cached, zero-latency inference.</div>
       </div>
-      <button class="modal-close" id="r2ConfigCloseBtn">&times;</button>
+      <button class="modal-close" id="aiConfigCloseBtn">&times;</button>
     </div>
 
     <div class="modal-field" style="margin-top:16px;">
-      <label>Worker Upload API URL</label>
-      <input type="text" id="r2EndpointInput" placeholder="/api/upload (or https://your-worker.workers.dev/api/upload)">
+      <label>Cloudflare AI Gateway URL</label>
+      <input type="text" id="aiGatewayUrlInput" placeholder="https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_id}/chat/completions">
       <div style="font-size:11px;color:var(--text-mid);margin-top:4px;">
-        Leave as <code>/api/upload</code> if using Cloudflare Pages Functions, or paste your standalone Cloudflare Worker URL.
+        Leave blank to use the built-in intelligent SDG&amp;E TOU reasoning engine (0-latency local simulation).
       </div>
     </div>
 
     <div class="modal-field" style="margin-top:16px;">
-      <label>Target R2 Bucket Name</label>
-      <input type="text" id="r2BucketNameInput" placeholder="sdge-vault">
+      <label>Bearer API Token (Optional)</label>
+      <input type="password" id="aiApiTokenInput" placeholder="Cloudflare API token or Gateway secret">
     </div>
 
-    <div style="margin-top:20px;padding:14px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;font-size:12px;color:var(--text-mid);line-height:1.5;">
-      <strong style="color:var(--text);">Setup status:</strong><br>
-      • <strong>Cloudflare Pages (Direct):</strong> Go to Cloudflare Pages &gt; <em>Settings &gt; Functions &gt; R2 bucket bindings</em> and bind <code>R2_BUCKET</code> to your bucket.<br>
-      • <strong>Standalone Worker:</strong> Run <code>npx wrangler deploy</code> inside the <code>worker/</code> directory and paste the generated worker URL above.
+    <div class="modal-field" style="margin-top:16px;">
+      <label>AI Model Identifier</label>
+      <input type="text" id="aiModelInput" value="glm-5.3" placeholder="glm-5.3">
+    </div>
+
+    <div style="margin-top:20px;padding:12px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;font-size:12px;color:var(--text-mid);line-height:1.5;">
+      <strong style="color:var(--text);">How it works:</strong> All live TOU rates, your active appliances, blackout schedules, and current countdown time are passed to GLM-5.3 as real-time system context.
     </div>
 
     <div class="modal-actions">
-      <div style="display:flex;gap:8px;">
-        <button class="btn ghost" id="r2ConfigResetBtn">Reset</button>
-        <button class="btn ghost" id="r2TestConnectionBtn">Test Connection</button>
-      </div>
-      <div style="display:flex;gap:8px;">
-        <button class="btn ghost" id="r2ConfigCancelBtn">Cancel</button>
-        <button class="btn" id="r2ConfigSaveBtn">Save Endpoint</button>
-      </div>
-    </div>
-    <div id="r2TestResult" style="margin-top:14px;padding:10px 14px;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:12px;display:none;"></div>
-  </div>
-</div>
-
-<!-- CLOUDFLARE R2 FILE ANALYSIS MODAL -->
-<div class="modal-overlay" id="r2AnalysisModal">
-  <div class="modal-box" style="max-width: 680px;">
-    <div class="modal-head">
-      <div>
-        <div class="modal-title" id="r2AnalysisTitle">SDG&amp;E Bill &amp; Usage Analysis</div>
-        <div class="modal-subtitle" id="r2AnalysisSubtitle">Parsed interval data and TOU rate comparison</div>
-      </div>
-      <button class="modal-close" id="r2AnalysisCloseBtn">&times;</button>
-    </div>
-
-    <div id="r2AnalysisContent" style="margin-top:16px;"></div>
-
-    <div class="modal-actions" id="r2AnalysisActions">
-      <button class="btn ghost" id="r2AnalysisCloseBottomBtn">Close</button>
-      <button class="btn" id="r2AnalysisApplyBtn" style="display:none;">Apply to Optimizer</button>
+      <button class="btn ghost" onclick="document.getElementById('aiConfigModal').classList.remove('open')">Cancel</button>
+      <button class="btn" id="aiConfigSaveBtn">Save AI Gateway</button>
     </div>
   </div>
 </div>
+
+<!-- FLOATING FOOTER STATUS BAR (STICKS ON SCROLL) -->
+<aside class="floating-status-bar" id="floatingStatusBar">
+  <span class="v2-badge">v2.0</span>
+  <span class="floating-status-text">last updated at: <span id="floatingTimestamp">Sep 24, 2026 · 11:20 PM PDT</span></span>
+  <button class="floating-status-close" id="statusCloseBtn" aria-label="Dismiss">&times;</button>
+</aside>
 
 <div class="tt" id="tooltip"></div>
 
-<!-- FLOATING FOOTER PROMO FOR LATEST VERSION -->
-<aside class="floating-promo-bar" id="floatingPromoBar">
-  <span class="floating-promo-text">A new layout with 50% floating impact panels &amp; GLM-5.3 Energy AI is live.</span>
-  <a href="latest.html" class="floating-promo-btn">See the latest version &rarr;</a>
-  <button class="floating-promo-close" id="promoCloseBtn" aria-label="Dismiss">&times;</button>
-</aside>
-
-<style>
-  .floating-promo-bar {
-    position: fixed;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(19, 19, 22, 0.94);
-    border: 1px solid var(--border-hi);
-    border-radius: 999px;
-    padding: 8px 14px 8px 22px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    z-index: 9999;
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(16px);
-    max-width: calc(100vw - 32px);
-    font-size: 13px;
-    animation: promoFadeIn 0.4s ease-out;
-  }
-  @keyframes promoFadeIn {
-    from { opacity: 0; transform: translate(-50%, 15px); }
-    to { opacity: 1; transform: translate(-50%, 0); }
-  }
-  .floating-promo-text {
-    color: var(--text-mid);
-    font-size: 13px;
-    font-weight: 400;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .floating-promo-btn {
-    background: var(--text);
-    color: var(--bg);
-    font-size: 12px;
-    font-weight: 700;
-    padding: 8px 16px;
-    border-radius: 999px;
-    text-decoration: none;
-    white-space: nowrap;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    transition: transform 0.15s, box-shadow 0.15s;
-    font-family: inherit;
-  }
-  .floating-promo-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(245, 244, 240, 0.25);
-  }
-  .floating-promo-close {
-    background: transparent;
-    border: 0;
-    color: var(--text-low);
-    font-size: 18px;
-    cursor: pointer;
-    line-height: 1;
-    padding: 2px 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .floating-promo-close:hover { color: var(--text); }
-  @media (max-width: 680px) {
-    .floating-promo-bar { border-radius: 16px; padding: 12px 16px; gap: 10px; flex-wrap: wrap; justify-content: center; text-align: center; }
-    .floating-promo-text { font-size: 12px; white-space: normal; }
-  }
-</style>
 <script>
   (function() {
-    const promo = document.getElementById('floatingPromoBar');
-    const closeBtn = document.getElementById('promoCloseBtn');
-    if (sessionStorage.getItem('dismissed_v2_promo') === 'true') {
-      if (promo) promo.style.display = 'none';
+    const bar = document.getElementById('floatingStatusBar');
+    const closeBtn = document.getElementById('statusCloseBtn');
+    if (sessionStorage.getItem('dismissed_v2_status') === 'true') {
+      if (bar) bar.style.display = 'none';
     }
-    if (closeBtn && promo) {
+    if (closeBtn && bar) {
       closeBtn.addEventListener('click', function() {
-        promo.style.display = 'none';
-        sessionStorage.setItem('dismissed_v2_promo', 'true');
+        bar.style.display = 'none';
+        sessionStorage.setItem('dismissed_v2_status', 'true');
       });
     }
   })();

@@ -1487,6 +1487,21 @@ function initRateModal() {
   }
 }
 
+function updateFooterTimestamp() {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone.replace('_', ' ');
+  const formatted = `${dateStr} · ${timeStr} (${tz})`;
+
+  const el1 = document.getElementById('footerUpdatedAt');
+  if (el1) el1.textContent = formatted;
+  const el2 = document.getElementById('floatingTimestamp');
+  if (el2) el2.textContent = formatted;
+  const el3 = document.getElementById('topLastUpdated');
+  if (el3) el3.textContent = `${dateStr} · ${timeStr}`;
+}
+
 // Single-execution initialization guard
 let isAppInitialized = false;
 function initApp() {
@@ -1498,6 +1513,7 @@ function initApp() {
   initFloatingLeftPanel();
   initR2Vault();
   initAIChatWidget();
+  updateFooterTimestamp();
   setInterval(updateLiveHUD, 1000);
 }
 
