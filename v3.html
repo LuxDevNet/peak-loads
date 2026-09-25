@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>SDG&amp;E TOU Optimizer · v2.00</title>
+<title>SDG&amp;E TOU Optimizer · v3.00</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&f[]=jetbrains-mono@400,600&display=swap" rel="stylesheet">
@@ -1757,9 +1757,9 @@
   <footer class="footer">
     <div class="footer-row">
       <div>
-        <span id="footerUpdatedAt">[Last Update: Sep 25, 2026 | v2.00]</span>
+        <span id="footerUpdatedAt">[Last Update: Sep 25, 2026 | v3.00]</span>
         &nbsp;&bull;&nbsp;
-        <a href="v3.html" class="v3-link">Access v3.00 Page &rarr;</a>
+        <a href="index.html">&larr; Return to v2.00</a>
       </div>
       <div>SDG&amp;E Schedule TOU-DR1 · EV-TOU-5 · TOU-DR2 · 2026 Tariffs</div>
     </div>
@@ -1788,7 +1788,7 @@
 
   <!-- SECTION 05: Monthly Impact (takes up most of the panel) -->
   <div class="flp-savings-wrap" id="flpSavingsContainer">
-    <!-- Populated dynamically by renderFloatingPanelSavings() in app.js -->
+    <!-- Populated dynamically by renderFloatingPanelSavings() in v3.js -->
   </div>
 
   <!-- SECTION 06: Cloudflare R2 Upload & File Vault (at the bottom) -->
@@ -1815,7 +1815,7 @@
 
     <!-- Uploaded file items -->
     <div class="flp-file-list" id="flpFileList">
-      <!-- Populated dynamically by renderR2FileList() in app.js -->
+      <!-- Populated dynamically by renderR2FileList() in v3.js -->
     </div>
   </div>
 </aside>
@@ -1854,7 +1854,7 @@
 
   <!-- Messages scroll area -->
   <div class="ai-chat-body" id="aiChatBody">
-    <!-- Populated dynamically by renderAIMessages() in app.js -->
+    <!-- Populated dynamically by renderAIMessages() in v3.js -->
   </div>
 
   <!-- Input bar -->
@@ -1868,8 +1868,8 @@
 <!-- FIXED BOTTOM-LEFT INDICATOR: [Last Update: MMM DD, YYYY | v#.##] -->
 <!-- ========================================================= -->
 <div class="bottom-left-tag">
-  <span id="bottomLeftTimestamp">[Last Update: Sep 25, 2026 | v2.00]</span>
-  <a href="v3.html" title="Access v3.00 Page">v3.00 &rarr;</a>
+  <span id="bottomLeftTimestamp">[Last Update: Sep 25, 2026 | v3.00]</span>
+  <a href="index.html" title="Switch to v2.00">v2.00</a>
 </div>
 
 <!-- ========================================================= -->
@@ -1972,6 +1972,6 @@
 <div class="tt" id="tooltip"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="app.js"></script>
+<script src="v3.js"></script>
 </body>
 </html>

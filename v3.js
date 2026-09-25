@@ -1495,7 +1495,7 @@ function updateFooterTimestamp() {
   const formatted = `${dateStr} · ${timeStr} (${tz})`;
 
   const elBL = document.getElementById('bottomLeftTimestamp');
-  if (elBL) elBL.textContent = `[Last Update: ${dateStr} | v2.00]`;
+  if (elBL) elBL.textContent = `[Last Update: ${dateStr} | v3.00]`;
   const el1 = document.getElementById('footerUpdatedAt');
   if (el1) el1.textContent = formatted;
 }
