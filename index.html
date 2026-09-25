@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SDG&amp;E TOU Optimizer &amp; Live Rates</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&f[]=jetbrains-mono@400,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Restrained Nexus dark with TOU semantic accents */
+    --bg:        #0b0b0c;
+    --surface:   #131316;
+    --surface-2: #1a1a1f;
+    --border:    #2a2a31;
+    --border-hi: #3a3a44;
+    --text:      #f5f4f0;
+    --text-mid:  #a8a7a3;
+    --text-low:  #6b6a67;
+    --text-dim:  #45454c;
+
+    /* TOU semantic - the only colors that earn their place */
+    --super: #6DAA45;
+    --off:   #E8AF34;
+    --peak:  #DD6974;
+
+    /* Dynamic period accent (updated by live loop) */
+    --current-color: var(--super);
+
+    /* Accent */
+    --accent: #4F98A3;
+
+    /* Off-window / blackout */
+    --blackout: rgba(20, 20, 24, 0.92);
+    --blackout-stripe: rgba(255, 255, 255, 0.04);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+  html, body {
+    font-family: 'Satoshi', 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.45;
+    font-feature-settings: 'ss01', 'cv11';
+  }
+  body {
+    background:
+      radial-gradient(900px 600px at 100% 0%, rgba(79, 152, 163, 0.06), transparent 60%),
+      radial-gradient(700px 500px at 0% 100%, rgba(109, 170, 69, 0.04), transparent 60%),
+      var(--bg);
+    min-height: 100vh;
+  }
+  .container { max-width: 1320px; margin: 0 auto; padding: 48px 32px 96px; }
+
+  /* === HERO === */
+  .hero { margin-bottom: 36px; }
+  .hero-eyebrow-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-mid);
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+  }
+  .eyebrow .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--super);
+    box-shadow: 0 0 8px var(--super);
+    animation: livePulse 2s infinite ease-in-out;
+  }
+  .hero-meta-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-low);
+    letter-spacing: 0.06em;
+  }
+
+  h1 {
+    font-size: clamp(52px, 8.5vw, 120px);
+    font-weight: 900;
+    letter-spacing: -0.045em;
+    line-height: 0.9;
+    margin-bottom: 20px;
+  }
+  h1 .accent { color: var(--super); }
+  h1 .quiet { color: var(--text-low); font-weight: 700; }
+  .lede {
+    font-size: clamp(16px, 1.5vw, 20px);
+    color: var(--text-mid);
+    max-width: 760px;
+    line-height: 1.55;
+    font-weight: 400;
+  }
+
+  /* === LIVE HUD === */
+  .live-hud {
+    background: linear-gradient(145deg, rgba(19, 19, 22, 0.96), rgba(26, 26, 31, 0.96));
+    border: 1px solid var(--border-hi);
+    border-radius: 20px;
+    padding: 24px 28px;
+    margin-bottom: 36px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(12px);
+    transition: border-color 0.3s;
+  }
+  .live-hud::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--current-color);
+    box-shadow: 0 0 16px var(--current-color);
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+  .live-hud-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .live-hud-badge-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--current-color);
+    color: var(--current-color);
+    transition: all 0.3s;
+  }
+  .live-badge .pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 8px currentColor;
+    animation: livePulse 2s infinite ease-in-out;
+  }
+  @keyframes livePulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.35; transform: scale(0.85); }
+  }
+  .live-plan-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-mid);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-weight: 600;
+  }
+  .live-clock {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-mid);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    padding: 5px 12px;
+    border-radius: 8px;
+  }
+  .live-clock svg { color: var(--accent); }
+
+  .live-hud-main {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 24px;
+    margin-top: 20px;
+    align-items: flex-start;
+  }
+  .live-stat-box .sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-low);
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .live-stat-box .val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(32px, 4vw, 48px);
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    color: var(--text);
+  }
+  .live-stat-box .val .cents { color: var(--current-color); }
+  .live-stat-box .val .unit {
+    font-size: 0.45em;
+    color: var(--text-mid);
+    font-weight: 500;
+    margin-left: 4px;
+  }
+  .live-stat-box .detail {
+    font-size: 12px;
+    color: var(--text-mid);
+    margin-top: 6px;
+    line-height: 1.45;
+  }
+
+  .live-hud-footer {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
+  .live-tip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-mid);
+    font-size: 13px;
+    line-height: 1.4;
+    max-width: 650px;
+  }
+  .live-tip svg { flex-shrink: 0; color: var(--current-color); }
+  .live-tip strong { color: var(--text); font-weight: 600; }
+
+  .live-instant-costs {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-low);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+    border-radius: 10px;
+  }
+  .live-instant-costs .item { display: inline-flex; gap: 6px; align-items: baseline; }
+  .live-instant-costs .item span { color: var(--text-low); }
+  .live-instant-costs .item strong { color: var(--text); font-weight: 700; }
+
+  /* === SECTION TITLES === */
+  .section { margin-top: 64px; }
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .section-title {
+    font-size: clamp(28px, 4vw, 44px);
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+  .section-title .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.5em;
+    font-weight: 600;
+    color: var(--text-low);
+    margin-right: 16px;
+    letter-spacing: 0;
+    position: relative;
+    top: -0.4em;
+  }
+  .section-sub {
+    color: var(--text-mid);
+    font-size: 14px;
+    max-width: 520px;
+  }
+
+  /* === CONTROLS BAR === */
+  .controls {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    margin-bottom: 40px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 18px 24px;
+  }
+  .controls-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .controls-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-low);
+    font-weight: 600;
+  }
+  .seg {
+    display: inline-flex;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 4px;
+    gap: 2px;
+  }
+  .seg button {
+    background: transparent;
+    border: 0;
+    color: var(--text-mid);
+    padding: 8px 16px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .seg button.active {
+    background: var(--text);
+    color: var(--bg);
+  }
+  .seg button:hover:not(.active) { color: var(--text); }
+
+  .controls-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-left: auto;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    background: var(--text);
+    color: var(--bg);
+    border: 0;
+    padding: 10px 18px;
+    font: inherit;
+    font-weight: 700;
+    font-size: 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform 0.1s, box-shadow 0.2s, background 0.15s;
+    font-family: inherit;
+    letter-spacing: -0.005em;
+  }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(245, 244, 240, 0.12); }
+  .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--border-hi); }
+  .btn.ghost:hover { background: var(--surface-2); box-shadow: none; border-color: var(--text-mid); }
+
+  .live-sync-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .live-sync-btn.synced {
+    border-color: rgba(109, 170, 69, 0.4);
+    color: var(--super);
+    background: rgba(109, 170, 69, 0.05);
+  }
+  .live-sync-btn.manual {
+    border-color: rgba(232, 175, 52, 0.4);
+    color: var(--off);
+    background: rgba(232, 175, 52, 0.05);
+  }
+  .live-dot-mini {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 6px currentColor;
+  }
+
+  /* === RATE CARDS — HUGE NUMBERS === */
+  .rate-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+  }
+  .rate-card {
+    background: var(--surface);
+    padding: 28px 26px 24px;
+    position: relative;
+    transition: background 0.2s, box-shadow 0.2s;
+  }
+  .rate-card:hover { background: var(--surface-2); }
+  .rate-card.active-now {
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 2px var(--c), 0 10px 30px rgba(0, 0, 0, 0.4);
+  }
+  .card-live-pill {
+    position: absolute;
+    top: 24px;
+    right: 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--c);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--c);
+    border-radius: 999px;
+    padding: 4px 10px;
+  }
+  .card-live-pill .pulse {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--c);
+    box-shadow: 0 0 6px var(--c);
+    animation: livePulse 1.5s infinite;
+  }
+  .rate-card .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-mid);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 600;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .rate-card .label::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    background: var(--c);
+  }
+  .rate-card .value {
+    font-size: clamp(38px, 5vw, 60px);
+    font-weight: 900;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text);
+    line-height: 1;
+    letter-spacing: -0.04em;
+    font-feature-settings: 'tnum';
+  }
+  .rate-card .value .cents { color: var(--c); }
+  .rate-card .unit {
+    font-size: 12px;
+    color: var(--text-low);
+    margin-top: 8px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .rate-card .hours {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--border);
+    font-size: 12px;
+    color: var(--text-mid);
+    line-height: 1.5;
+  }
+
+  /* === APPLIANCE SELECTOR === */
+  .selector {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 40px;
+  }
+  .selector-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 10px;
+  }
+  .selector-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .selector-row h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .selector-row .quick {
+    display: flex;
+    gap: 6px;
+  }
+  .quick button {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-mid);
+    padding: 6px 12px;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .quick button:hover { color: var(--text); border-color: var(--border-hi); }
+  .chip {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .chip:hover { border-color: var(--border-hi); }
+  .chip.active { border-color: var(--text); background: var(--bg); }
+  .chip-check {
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    border: 1.5px solid var(--border-hi);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  .chip.active .chip-check {
+    background: var(--text);
+    border-color: var(--text);
+  }
+  .chip.active .chip-check::after {
+    content: '';
+    width: 10px;
+    height: 6px;
+    border-left: 2px solid var(--bg);
+    border-bottom: 2px solid var(--bg);
+    transform: rotate(-45deg) translate(1px, -1px);
+  }
+  .chip-name { font-size: 14px; font-weight: 600; }
+  .chip-icon {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    background: var(--border);
+    padding: 4px 8px;
+    border-radius: 6px;
+    color: var(--accent);
+  }
+
+  /* === WORKING HOURS === */
+  .work-hours {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 40px;
+  }
+  .wh-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 18px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .wh-title { font-size: 14px; font-weight: 700; }
+  .wh-desc { font-size: 12px; color: var(--text-mid); margin-top: 4px; max-width: 480px; }
+  .wh-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-mid);
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+  }
+  .switch {
+    width: 34px;
+    height: 20px;
+    border-radius: 999px;
+    background: var(--border);
+    position: relative;
+    transition: background 0.2s;
+  }
+  .switch::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: var(--text);
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.2s;
+  }
+  .wh-toggle.on .switch { background: var(--super); }
+  .wh-toggle.on .switch::after { transform: translateX(14px); }
+
+  .wh-inputs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .wh-field { display: flex; flex-direction: column; gap: 8px; }
+  .wh-field label {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-mid);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+  }
+  .wh-field input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    font: inherit;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .wh-field input:focus { outline: none; border-color: var(--accent); }
+  .wh-presets { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  /* === TIMELINE — THE HERO VIZ === */
+  .tl-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    overflow-x: auto;
+    position: relative;
+  }
+  .tl {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 14px;
+    min-width: 900px;
+    align-items: center;
+  }
+  .tl-row { display: contents; }
+  .tl-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .tl-label .ic {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--accent);
+    padding: 4px 6px;
+    border-radius: 6px;
+  }
+  .tl-label .nm { display: flex; flex-direction: column; }
+  .tl-label .nm small {
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-low);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 2px;
+    font-weight: 600;
+  }
+  .tl-bar {
+    display: grid;
+    grid-template-columns: repeat(24, 1fr);
+    height: 44px;
+    background: var(--bg);
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid var(--border);
+  }
+  .tl-cell {
+    border-right: 1px solid rgba(0,0,0,0.25);
+    transition: filter 0.15s;
+    cursor: help;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .tl-cell:last-child { border-right: 0; }
+  .tl-cell.super { background: var(--super); }
+  .tl-cell.off   { background: var(--off); }
+  .tl-cell.peak  { background: var(--peak); }
+  .tl-cell:hover { filter: brightness(1.2); z-index: 3; }
+
+  /* Current hour cell subtle indicator */
+  .tl-cell.current-hour-cell {
+    outline: 2px solid rgba(255, 255, 255, 0.95);
+    outline-offset: -2px;
+    z-index: 4;
+  }
+
+  /* State markers */
+  .tl-cell.recommend::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      45deg,
+      rgba(0, 0, 0, 0.18) 0 3px,
+      transparent 3px 6px
+    );
+  }
+  .tl-cell.recommend::before {
+    content: '';
+    position: absolute;
+    bottom: 3px; left: 50%;
+    transform: translateX(-50%);
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 1;
+  }
+  .tl-cell.avoid {
+    background: var(--blackout) !important;
+  }
+  .tl-cell.avoid::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      135deg,
+      rgba(221, 105, 116, 0.35) 0 4px,
+      transparent 4px 8px
+    );
+  }
+  .tl-cell.avoid::before {
+    content: '';
+    position: absolute;
+    inset: 20% 38%;
+    border-left: 2px solid var(--peak);
+    border-bottom: 2px solid var(--peak);
+    transform: rotate(-45deg);
+  }
+  .tl-cell.unavailable {
+    background: var(--blackout) !important;
+    opacity: 0.85;
+  }
+  .tl-cell.unavailable::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      135deg,
+      var(--blackout-stripe) 0 3px,
+      transparent 3px 6px
+    );
+  }
+
+  /* Live needle on timeline bar */
+  .tl-now-needle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #ffffff;
+    box-shadow: 0 0 8px #ffffff, 0 0 14px var(--accent);
+    z-index: 10;
+    pointer-events: none;
+    transform: translateX(-50%);
+  }
+  .tl-now-needle::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 0 8px #ffffff;
+  }
+
+  .tl-axis {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 14px;
+    margin-top: 14px;
+    min-width: 900px;
+    position: relative;
+  }
+  .tl-axis .ticks {
+    display: grid;
+    grid-template-columns: repeat(24, 1fr);
+    font-size: 10px;
+    color: var(--text-low);
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    position: relative;
+  }
+  .tl-axis .ticks span { text-align: left; padding-left: 2px; }
+
+  .tl-axis-now-indicator {
+    position: absolute;
+    transform: translateX(-50%);
+    top: -20px;
+    background: #ffffff;
+    color: #0b0b0c;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+    z-index: 12;
+    pointer-events: none;
+  }
+
+  /* === LEGEND === */
+  .legend {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+  }
+  .legend-item { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text-mid); }
+  .legend-swatch {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+  }
+  .legend-swatch.rec {
+    background: var(--super);
+    background-image: repeating-linear-gradient(45deg, rgba(0,0,0,0.18) 0 3px, transparent 3px 6px);
+  }
+  .legend-swatch.rec::after {
+    content: '';
+    position: absolute;
+    bottom: 3px; left: 50%;
+    transform: translateX(-50%);
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.85);
+  }
+  .legend-swatch.avd {
+    background: var(--blackout);
+    background-image: repeating-linear-gradient(135deg, rgba(221, 105, 116, 0.4) 0 3px, transparent 3px 6px);
+  }
+  .legend-swatch.unv {
+    background: var(--blackout);
+    background-image: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0 3px, transparent 3px 6px);
+  }
+  .legend-swatch.now-line {
+    background: #ffffff;
+    width: 4px;
+    height: 16px;
+    box-shadow: 0 0 6px #ffffff;
+  }
+
+  /* === APPLIANCE CARDS === */
+  .app-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 20px;
+  }
+  .app-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    position: relative;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .app-card:hover { border-color: var(--border-hi); }
+  .app-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 22px;
+    gap: 12px;
+  }
+  .app-head-l { display: flex; align-items: flex-start; gap: 14px; }
+  .app-icon-big {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--accent);
+    width: 46px;
+    height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    flex-shrink: 0;
+  }
+  .app-name-big {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+  .app-meta {
+    font-size: 11px;
+    color: var(--text-low);
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+  }
+
+  /* Live status chip in card */
+  .app-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 3px 9px;
+    border-radius: 999px;
+    margin-top: 8px;
+  }
+  .app-status-badge.status-best {
+    background: rgba(109, 170, 69, 0.15);
+    color: var(--super);
+    border: 1px solid rgba(109, 170, 69, 0.4);
+  }
+  .app-status-badge.status-best .dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--super); box-shadow: 0 0 6px var(--super);
+  }
+  .app-status-badge.status-mid {
+    background: rgba(232, 175, 52, 0.15);
+    color: var(--off);
+    border: 1px solid rgba(232, 175, 52, 0.4);
+  }
+  .app-status-badge.status-mid .dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--off);
+  }
+  .app-status-badge.status-avoid {
+    background: rgba(221, 105, 116, 0.15);
+    color: var(--peak);
+    border: 1px solid rgba(221, 105, 116, 0.4);
+  }
+  .app-status-badge.status-avoid .dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--peak); box-shadow: 0 0 6px var(--peak);
+  }
+  .app-status-badge.status-unav {
+    background: rgba(107, 106, 103, 0.15);
+    color: var(--text-mid);
+    border: 1px solid var(--border);
+  }
+  .app-status-badge.status-unav .dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--text-mid);
+  }
+
+  .app-save {
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .app-save .num {
+    font-size: 22px;
+    font-weight: 900;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--super);
+    letter-spacing: -0.02em;
+  }
+  .app-save .sub {
+    font-size: 9px;
+    color: var(--text-low);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+  }
+
+  .windows { display: flex; flex-direction: column; gap: 10px; }
+  .win {
+    display: grid;
+    grid-template-columns: 60px 1fr;
+    gap: 14px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border-left: 3px solid var(--c);
+    background: var(--surface-2);
+    align-items: center;
+  }
+  .win.best  { --c: var(--super); }
+  .win.mid   { --c: var(--off); }
+  .win.worst { --c: var(--peak); }
+  .win.best.fallback { --c: var(--accent); }
+  .win-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--c);
+  }
+  .win-body { display: flex; flex-direction: column; gap: 4px; }
+  .win-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.3;
+  }
+  .win-note { font-size: 12px; color: var(--text-mid); line-height: 1.4; }
+
+  /* === SAVINGS === */
+  .savings-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px;
+  }
+  .savings-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 32px;
+    gap: 24px;
+    flex-wrap: wrap;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--border);
+  }
+  .savings-num {
+    font-size: clamp(60px, 8.5vw, 108px);
+    font-weight: 900;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--super);
+    letter-spacing: -0.05em;
+    line-height: 0.9;
+  }
+  .savings-num .sm { font-size: 0.4em; color: var(--text-mid); margin-right: 6px; vertical-align: 12%; }
+  .savings-label {
+    font-size: 12px;
+    color: var(--text-mid);
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 600;
+    margin-top: 6px;
+  }
+  .savings-side {
+    text-align: right;
+  }
+  .savings-side .row {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    margin-bottom: 6px;
+    display: flex;
+    gap: 16px;
+    justify-content: flex-end;
+    align-items: baseline;
+  }
+  .savings-side .row .k { color: var(--text-low); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .savings-side .row .v { color: var(--text); font-weight: 700; font-size: 18px; }
+
+  .savings-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .savings-table th {
+    text-align: left;
+    font-size: 10px;
+    color: var(--text-low);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 10px 0;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+  }
+  .savings-table th.r { text-align: right; }
+  .savings-table td {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text);
+  }
+  .savings-table td.r { text-align: right; font-weight: 700; }
+  .savings-table td.d { color: var(--super); font-weight: 700; }
+  .savings-table .name { font-family: 'Satoshi', sans-serif; font-weight: 600; }
+  .savings-table tr:last-child td { border-bottom: 0; }
+
+  /* === RATE CUSTOMIZER MODAL === */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(8px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 20px;
+  }
+  .modal-overlay.open {
+    display: flex;
+  }
+  .modal-box {
+    background: var(--surface);
+    border: 1px solid var(--border-hi);
+    border-radius: 20px;
+    max-width: 600px;
+    width: 100%;
+    padding: 32px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
+    position: relative;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+    gap: 16px;
+  }
+  .modal-title {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .modal-subtitle {
+    font-size: 13px;
+    color: var(--text-mid);
+    margin-top: 4px;
+    line-height: 1.5;
+  }
+  .modal-close {
+    background: transparent;
+    border: 0;
+    color: var(--text-mid);
+    font-size: 24px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px;
+  }
+  .modal-close:hover { color: var(--text); }
+  .modal-section-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-mid);
+    margin: 20px 0 12px;
+    font-weight: 700;
+  }
+  .modal-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+  }
+  .modal-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .modal-field label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    color: var(--text-low);
+    font-weight: 600;
+  }
+  .modal-field input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .modal-field input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .modal-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 28px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  /* Footer */
+  .footer {
+    margin-top: 80px;
+    padding-top: 28px;
+    border-top: 1px solid var(--border);
+    color: var(--text-low);
+    font-size: 12px;
+    line-height: 1.7;
+  }
+  .footer a { color: var(--text-mid); text-decoration: none; border-bottom: 1px dotted var(--text-low); }
+  .footer a:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* Tooltip */
+  .tt {
+    position: fixed;
+    background: var(--text);
+    color: var(--bg);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.1s;
+    z-index: 1000;
+    white-space: nowrap;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .tt.show { opacity: 1; }
+
+  @media (max-width: 768px) {
+    .container { padding: 32px 16px 60px; }
+    .controls { padding: 16px; }
+    .tl { grid-template-columns: 140px 1fr; }
+    .tl-axis { grid-template-columns: 140px 1fr; }
+    .live-hud { padding: 20px; }
+    .controls-actions { margin-left: 0; width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header class="hero">
+    <div class="hero-eyebrow-row">
+      <div class="eyebrow"><span class="dot"></span>SDG&amp;E Live Rates &amp; TOU Optimizer</div>
+      <div class="hero-meta-badge" id="heroTariffNote">Schedule TOU-DR1 · San Diego, CA</div>
+    </div>
+    <h1>
+      Run loads when<br>
+      <span class="accent">electrons are cheap.</span><br>
+      <span class="quiet">Not when they aren't.</span>
+    </h1>
+    <p class="lede">A real-time map of San Diego's time-of-use rates and household appliances. Live rate tracking, countdown to the next price shift, and printable operating schedules.</p>
+  </header>
+
+  <!-- LIVE RATE HUD -->
+  <div class="live-hud" id="liveHud">
+    <div class="live-hud-top">
+      <div class="live-hud-badge-group">
+        <div class="live-badge" id="liveBadge">
+          <span class="pulse-dot"></span>
+          <span id="liveBadgeText">Live Rate Active</span>
+        </div>
+        <div class="live-plan-tag" id="livePlanTag">TOU-DR1 Standard</div>
+      </div>
+      <div class="live-clock" id="liveClock">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span id="liveClockTime">--:--:-- --</span>
+      </div>
+    </div>
+
+    <div class="live-hud-main">
+      <div class="live-stat-box">
+        <div class="sub">Current Rate Right Now</div>
+        <div class="val" id="liveCurrentRate">--<span class="unit">¢/kWh</span></div>
+        <div class="detail" id="liveCurrentPeriodLabel">Loading period...</div>
+      </div>
+
+      <div class="live-stat-box">
+        <div class="sub">Next Window Transition</div>
+        <div class="val" id="liveCountdown">--<span class="unit">rem</span></div>
+        <div class="detail" id="liveNextPeriodLabel">Calculating next period...</div>
+      </div>
+
+      <div class="live-stat-box">
+        <div class="sub">Active Price Spread</div>
+        <div class="val" id="liveSpreadVal">--<span class="unit">%</span></div>
+        <div class="detail" id="liveSpreadLabel">Peak premium over Super Off-Peak</div>
+      </div>
+    </div>
+
+    <div class="live-hud-footer">
+      <div class="live-tip" id="liveTip">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <span id="liveTipText">Calculating optimal load strategy...</span>
+      </div>
+      <div class="live-instant-costs" id="liveInstantCosts">
+        <!-- Live cost per hour for selected appliances -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls Bar -->
+  <div class="controls">
+    <div class="controls-group">
+      <div class="controls-label">Pricing Plan</div>
+      <div class="seg" id="planToggle">
+        <button class="active" data-plan="tou-dr1">TOU-DR1 (Standard)</button>
+        <button data-plan="ev-tou-5">EV-TOU-5 (EV / Battery)</button>
+        <button data-plan="tou-dr2">TOU-DR2 (2-Tier)</button>
+      </div>
+    </div>
+
+    <div class="controls-group">
+      <div class="controls-label">Season</div>
+      <div class="seg" id="seasonToggle">
+        <button class="active" data-season="summer">Summer (Jun-Oct)</button>
+        <button data-season="winter">Winter (Nov-May)</button>
+      </div>
+    </div>
+
+    <div class="controls-group">
+      <div class="controls-label">Day Schedule</div>
+      <div class="seg" id="dayToggle">
+        <button class="active" data-day="weekday">Weekday</button>
+        <button data-day="weekend">Weekend / Holiday</button>
+      </div>
+    </div>
+
+    <div class="controls-actions">
+      <button class="btn ghost live-sync-btn synced" id="syncLiveBtn" title="Sync season and day with real-time clock">
+        <span class="live-dot-mini"></span>
+        <span id="syncLiveText">Live Synced</span>
+      </button>
+
+      <button class="btn ghost" id="editRatesBtn" title="Customize $/kWh rates or input CCA rates">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        Edit Rates
+      </button>
+
+      <button class="btn" id="downloadBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download Schedule
+      </button>
+    </div>
+  </div>
+
+  <!-- RATES -->
+  <div class="rate-grid" id="rateGrid"></div>
+
+  <!-- APPLIANCE SELECTOR -->
+  <div class="section">
+    <div class="section-head">
+      <h2 class="section-title"><span class="num">01</span>Your appliances</h2>
+      <p class="section-sub">Check the loads you own. The timeline, instant hourly costs, and savings update instantly.</p>
+    </div>
+    <div class="selector">
+      <div class="selector-row">
+        <h3>Select what to optimize</h3>
+        <div class="quick">
+          <button data-quick="all">All</button>
+          <button data-quick="none">None</button>
+        </div>
+      </div>
+      <div class="selector-grid" id="selectorGrid"></div>
+    </div>
+  </div>
+
+  <!-- WORKING HOURS -->
+  <div class="section">
+    <div class="section-head">
+      <h2 class="section-title"><span class="num">02</span>Your schedule</h2>
+      <p class="section-sub">Block out hours you can't run loads (sleeping, away at work, kids' nap time). They'll show as unavailable on the timeline.</p>
+    </div>
+    <div class="work-hours">
+      <div class="wh-head">
+        <div>
+          <div class="wh-title">Working &amp; sleep hours</div>
+          <div class="wh-desc">Tell us when you can't physically run loads — we'll route recommendations around it.</div>
+        </div>
+        <div class="wh-toggle on" id="whToggle">
+          <span id="whState">Active</span>
+          <div class="switch"></div>
+        </div>
+      </div>
+      <div class="wh-inputs">
+        <div class="wh-field">
+          <label>Sleep start</label>
+          <input type="time" id="sleepStart" value="23:00">
+        </div>
+        <div class="wh-field">
+          <label>Wake up</label>
+          <input type="time" id="sleepEnd" value="07:00">
+        </div>
+        <div class="wh-field">
+          <label>Work / away start</label>
+          <input type="time" id="workStart" value="09:00">
+        </div>
+        <div class="wh-field">
+          <label>Work / away end</label>
+          <input type="time" id="workEnd" value="17:00">
+        </div>
+      </div>
+      <div class="wh-presets">
+        <div class="quick">
+          <button data-preset="office">9-5 office</button>
+          <button data-preset="wfh">WFH (home all day)</button>
+          <button data-preset="night">Night shift</button>
+          <button data-preset="retired">Retired / always home</button>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;margin-top:18px;padding-top:18px;border-top:1px solid var(--border);">
+        <div class="wh-toggle on" id="autoToggle">
+          <span id="autoState">Allow</span>
+          <div class="switch"></div>
+        </div>
+        <div style="font-size:12px;color:var(--text-mid);line-height:1.5;">
+          <strong style="color:var(--text);">Set-and-forget loads</strong> (EV, pool pump, AC pre-cooling, dishwasher delay-start) can run while you're asleep or away. Turn off if you want every load to require you home.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TIMELINE -->
+  <div class="section">
+    <div class="section-head">
+      <h2 class="section-title"><span class="num">03</span>24-hour map</h2>
+      <p class="section-sub">Background = rate period. Glowing white line = current time right now. Hatched red = avoid. Dimmed = unavailable per schedule.</p>
+    </div>
+    <div class="tl-wrap">
+      <div class="tl" id="timeline"></div>
+      <div class="tl-axis">
+        <div></div>
+        <div class="ticks" id="axisTicks"></div>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-swatch" style="background:var(--super)"></div>Super Off-Peak</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:var(--off)"></div>Off-Peak</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:var(--peak)"></div>On-Peak (4–9 p.m.)</div>
+        <div class="legend-item"><div class="legend-swatch rec"></div>Recommended run window</div>
+        <div class="legend-item"><div class="legend-swatch avd"></div>Avoid running</div>
+        <div class="legend-item"><div class="legend-swatch unv"></div>Unavailable (your schedule)</div>
+        <div class="legend-item"><div class="legend-swatch now-line"></div>Current Time (Live)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPLIANCE CARDS -->
+  <div class="section">
+    <div class="section-head">
+      <h2 class="section-title"><span class="num">04</span>How to run each load</h2>
+      <p class="section-sub">Best, mid, and avoid windows reflect rate cost, appliance safety constraints, and live schedule availability.</p>
+    </div>
+    <div class="app-grid" id="applianceGrid"></div>
+  </div>
+
+  <!-- SAVINGS -->
+  <div class="section">
+    <div class="section-head">
+      <h2 class="section-title"><span class="num">05</span>Monthly impact</h2>
+      <p class="section-sub">Comparing an uncontrolled schedule against full TOU optimization for your selected appliances.</p>
+    </div>
+    <div class="savings-card" id="savings"></div>
+  </div>
+
+  <footer class="footer">
+    <strong style="color:var(--text-mid)">Source:</strong> SDG&amp;E Schedule TOU-DR1, EV-TOU-5, and TOU-DR2 residential tariffs. Rates effective 2026. On-Peak is 4–9 p.m. daily. Super Off-Peak weekday hours: 12 a.m.–6 a.m. and 10 a.m.–2 p.m. (expanded year-round as of May 1, 2025/2026).<br>
+    References: <a href="https://www.sdge.com/super-off-peak-residential" target="_blank">SDG&amp;E Extended Super Off-Peak</a> · <a href="https://www.sdge.com/residential/pricing-plans" target="_blank">Residential Pricing Plans</a> · <a href="https://www.sdge.com/rates-and-regulations/current-and-effective-tariffs" target="_blank">Current Effective Tariffs</a> · <a href="https://sdcommunitypower.org" target="_blank">San Diego Community Power (SDCP)</a>.<br>
+    Savings estimates are illustrative; actual savings depend on baseline allocation, CARE eligibility, and household kWh usage.
+  </footer>
+</div>
+
+<!-- RATE CUSTOMIZER MODAL -->
+<div class="modal-overlay" id="rateModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="modalPlanTitle">Custom Tariff Rates</div>
+        <div class="modal-subtitle">Fine-tune the exact $/kWh rates for your SDG&amp;E plan (e.g. if you are enrolled in San Diego Community Power CCA or have a CARE discount).</div>
+      </div>
+      <button class="modal-close" id="modalCloseBtn">&times;</button>
+    </div>
+
+    <div class="modal-section-title">Summer Rates (Jun 1 – Oct 31) · $/kWh</div>
+    <div class="modal-grid" id="modalSummerFields">
+      <div class="modal-field" id="fieldSummerSuper">
+        <label>Super Off-Peak</label>
+        <input type="number" step="0.001" id="rateSummerSuper">
+      </div>
+      <div class="modal-field">
+        <label>Off-Peak</label>
+        <input type="number" step="0.001" id="rateSummerOff">
+      </div>
+      <div class="modal-field">
+        <label>On-Peak (4–9 PM)</label>
+        <input type="number" step="0.001" id="rateSummerPeak">
+      </div>
+    </div>
+
+    <div class="modal-section-title">Winter Rates (Nov 1 – May 31) · $/kWh</div>
+    <div class="modal-grid" id="modalWinterFields">
+      <div class="modal-field" id="fieldWinterSuper">
+        <label>Super Off-Peak</label>
+        <input type="number" step="0.001" id="rateWinterSuper">
+      </div>
+      <div class="modal-field">
+        <label>Off-Peak</label>
+        <input type="number" step="0.001" id="rateWinterOff">
+      </div>
+      <div class="modal-field">
+        <label>On-Peak (4–9 PM)</label>
+        <input type="number" step="0.001" id="rateWinterPeak">
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn ghost" id="modalResetBtn">Reset to Official SDG&amp;E Rates</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn ghost" id="modalCancelBtn">Cancel</button>
+        <button class="btn" id="modalSaveBtn">Save &amp; Apply</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tt" id="tooltip"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

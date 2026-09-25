@@ -1,0 +1,101 @@
+# SDG&E TOU Optimizer & Live Rate Monitor
+
+An interactive, real-time web application to track San Diego Gas & Electric (SDG&E) electricity rates live, visualize 24-hour Time-of-Use (TOU) schedules, optimize household appliance run windows, and maximize monthly bill savings.
+
+![SDG&E TOU Optimizer Preview](preview.png)
+
+---
+
+## ⚡ Features
+
+### 1. Real-Time Live Rate HUD
+- **Live Rate Tracking:** Displays the active electricity pricing right now (in ¢/kWh and $/kWh).
+- **Countdown to Next Period:** Real-time countdown timer to the next rate window (e.g., *"Switches to Super Off-Peak in 1h 36m at 12:00 AM"*).
+- **Live Actionable Advice:** Instant recommendation on whether high-draw appliances should be run or delayed.
+- **Instant Hourly Running Cost Calculator:** Live estimated operating cost per hour for Central A/C, Level 2 EV charging, clothes dryer, and dishwasher cycles.
+
+### 2. Live 24-Hour Timeline Needle
+- A vertical illuminated progress indicator marks the exact current hour and minute across the 24-hour appliance timeline.
+- Highlights the current hour cell and visualizes upcoming rate blocks at a glance.
+
+### 3. Multi-Plan Tariff Support
+Full support for primary SDG&E residential rate schedules:
+- **TOU-DR1 (Standard Residential TOU):** 3-period rate (Super Off-Peak, Off-Peak, On-Peak).
+- **EV-TOU-5 (Electric Vehicle / Battery Owners):** 3-period rate featuring an ultra-low Super Off-Peak rate (~$0.131/kWh) for EV charging.
+- **TOU-DR2 (Two-Period TOU):** Simple 2-period structure (4–9 p.m. On-Peak and Off-Peak).
+
+### 4. Auto-Calendar & Holiday Detection
+- **Auto-Sync Mode:** Automatically detects the current season:
+  - **Summer:** June 1 – October 31
+  - **Winter:** November 1 – May 31
+- Automatically identifies weekends and California/SDG&E statutory holidays (New Year's, Presidents' Day, Memorial Day, Independence Day, Labor Day, Veterans Day, Thanksgiving, Christmas) which qualify for extended weekend Super Off-Peak hours (midnight to 2 p.m.).
+- Supports manual override with an instant "Live Synced" snap-back toggle.
+
+### 5. Custom Rates & CCA Support
+- Includes a built-in **Rate Customizer** modal to adjust exact $/kWh rates.
+- Ideal for customers enrolled in **San Diego Community Power (SDCP)**, Clean Energy Alliance (CEA), or receiving **California Alternate Rates for Energy (CARE)** discounts.
+- Custom rates are stored locally via `localStorage` and persist across sessions.
+
+### 6. Appliance Scheduling & Blackout Constraints
+- **Custom Schedule Constraints:** Set sleep and away/work hours to eliminate impractical recommendation windows.
+- **Automated vs. Attended Loads:** Set-and-forget loads (EV charger, pool pump, dishwasher delay-start, A/C pre-cooling) can bypass work/sleep blackouts while attended loads (clothes dryer) strictly respect household safety guidelines.
+- **Live Status Badges:** Each appliance card dynamically displays its status at this exact moment (`Run Now (Cheapest)`, `Avoid Right Now`, `OK to Run`, or `Schedule Blackout`).
+
+### 7. Exportable PDF Schedule
+- One-click client-side PDF generator (via jsPDF) producing a branded 1-page operating schedule and appliance checklist to post by your electrical panel or refrigerator.
+
+---
+
+## 📊 SDG&E Time-of-Use Windows Overview
+
+| Pricing Period | Weekdays | Weekends & Holidays | Typical Rate Spread |
+| :--- | :--- | :--- | :--- |
+| **Super Off-Peak** *(Lowest)* | Midnight – 6:00 a.m.<br>10:00 a.m. – 2:00 p.m.* | Midnight – 2:00 p.m. | ~$0.131 – $0.449 / kWh |
+| **Off-Peak** *(Shoulder)* | 6:00 a.m. – 10:00 a.m.<br>2:00 p.m. – 4:00 p.m.<br>9:00 p.m. – Midnight | 2:00 p.m. – 4:00 p.m.<br>9:00 p.m. – Midnight | ~$0.476 – $0.540 / kWh |
+| **On-Peak** *(Highest)* | **4:00 p.m. – 9:00 p.m.** | **4:00 p.m. – 9:00 p.m.** | ~$0.622 – $0.802 / kWh |
+
+*\*Note: The weekday 10 a.m. – 2 p.m. midday Super Off-Peak window was made year-round by SDG&E effective May 2025/2026.*
+
+---
+
+## 🚀 Getting Started
+
+This application is built as a zero-dependency, pure static web client (`HTML5`, `CSS3`, `vanilla JavaScript`).
+
+### Quick Start
+Simply open `index.html` directly in any web browser:
+
+```bash
+# On Windows PowerShell:
+Start-Process index.html
+
+# Or run a local HTTP server:
+npx serve .
+# or
+python -m http.server 8080
+```
+
+Open [http://localhost:8080](http://localhost:8080) in your browser.
+
+---
+
+## 📁 Project Structure
+
+```
+peak-loads/
+├── index.html                   # Core web application UI & styles
+├── app.js                       # Live rate engine, TOU logic, and PDF generator
+├── .gitignore                   # Git ignore configuration
+├── README.md                    # Project documentation
+├── preview.png                  # Application UI screenshot
+├── SDGE-TOU-Schedule.pdf        # Sample exported schedule PDF
+└── SDGE-TOU-Appliance-Checklist.pdf # Printable appliance checklist
+```
+
+---
+
+## 🔗 Official References & Tariffs
+- [SDG&E Residential Pricing Plans](https://www.sdge.com/residential/pricing-plans)
+- [SDG&E Current Effective Tariffs (CPUC Filings)](https://www.sdge.com/rates-and-regulations/current-and-effective-tariffs)
+- [SDG&E Extended Super Off-Peak Information](https://www.sdge.com/super-off-peak-residential)
+- [San Diego Community Power (SDCP) Tariffs](https://sdcommunitypower.org)
