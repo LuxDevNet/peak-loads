@@ -1206,7 +1206,8 @@ setInterval(updateLiveHUD, 1000);
 let r2Config = {
   endpoint: localStorage.getItem('r2_worker_url') || '/api/upload',
   bucket: localStorage.getItem('r2_bucket_name') || 'sdge-vault',
-  files: JSON.parse(localStorage.getItem('r2_vault_files_v1') || '[]')
+  files: JSON.parse(localStorage.getItem('r2_vault_files_v1') || '[]'),
+  isConnected: false
 };
 
 function initR2Vault() {
@@ -1214,12 +1215,28 @@ function initR2Vault() {
   const fileInput = document.getElementById('r2FileInput');
   const selectBtn = document.getElementById('r2SelectBtn');
   const refreshBtn = document.getElementById('r2RefreshBtn');
+  const backupBtn = document.getElementById('r2BackupBtn');
+  const sampleBtn = document.getElementById('r2SampleBtn');
   const configBtn = document.getElementById('r2ConfigBtn');
   const configModal = document.getElementById('r2ConfigModal');
   const configCloseBtn = document.getElementById('r2ConfigCloseBtn');
   const configCancelBtn = document.getElementById('r2ConfigCancelBtn');
   const configSaveBtn = document.getElementById('r2ConfigSaveBtn');
   const configResetBtn = document.getElementById('r2ConfigResetBtn');
+  const testConnBtn = document.getElementById('r2TestConnectionBtn');
+
+  // Analysis modal elements
+  const analysisModal = document.getElementById('r2AnalysisModal');
+  const analysisCloseBtn = document.getElementById('r2AnalysisCloseBtn');
+  const analysisCloseBottomBtn = document.getElementById('r2AnalysisCloseBottomBtn');
+
+  if (analysisCloseBtn) analysisCloseBtn.addEventListener('click', () => analysisModal.classList.remove('open'));
+  if (analysisCloseBottomBtn) analysisCloseBottomBtn.addEventListener('click', () => analysisModal.classList.remove('open'));
+  if (analysisModal) {
+    analysisModal.addEventListener('click', (e) => {
+      if (e.target === analysisModal) analysisModal.classList.remove('open');
+    });
+  }
 
   updateR2StatusBadge();
   renderR2FileList();
@@ -1268,8 +1285,16 @@ function initR2Vault() {
 
   if (refreshBtn) {
     refreshBtn.addEventListener('click', () => {
-      syncR2RemoteFiles();
+      syncR2RemoteFiles(true);
     });
+  }
+
+  if (backupBtn) {
+    backupBtn.addEventListener('click', backupScheduleToR2);
+  }
+
+  if (sampleBtn) {
+    sampleBtn.addEventListener('click', loadSampleGreenButtonData);
   }
 
   // Config modal
@@ -1277,6 +1302,8 @@ function initR2Vault() {
     configBtn.addEventListener('click', () => {
       document.getElementById('r2EndpointInput').value = r2Config.endpoint;
       document.getElementById('r2BucketNameInput').value = r2Config.bucket;
+      const resultEl = document.getElementById('r2TestResult');
+      if (resultEl) resultEl.style.display = 'none';
       configModal.classList.add('open');
     });
   }
@@ -1286,6 +1313,13 @@ function initR2Vault() {
   if (configModal) {
     configModal.addEventListener('click', (e) => {
       if (e.target === configModal) configModal.classList.remove('open');
+    });
+  }
+
+  if (testConnBtn) {
+    testConnBtn.addEventListener('click', async () => {
+      const endpoint = document.getElementById('r2EndpointInput').value.trim() || '/api/upload';
+      await testWorkerConnection(endpoint);
     });
   }
 
@@ -1299,7 +1333,7 @@ function initR2Vault() {
       localStorage.setItem('r2_bucket_name', bucket);
       configModal.classList.remove('open');
       updateR2StatusBadge();
-      syncR2RemoteFiles();
+      syncR2RemoteFiles(true);
     });
   }
 
@@ -1311,19 +1345,57 @@ function initR2Vault() {
       localStorage.removeItem('r2_bucket_name');
       document.getElementById('r2EndpointInput').value = '/api/upload';
       document.getElementById('r2BucketNameInput').value = 'sdge-vault';
-      configModal.classList.remove('open');
+      const resultEl = document.getElementById('r2TestResult');
+      if (resultEl) resultEl.style.display = 'none';
       updateR2StatusBadge();
-      syncR2RemoteFiles();
+      syncR2RemoteFiles(true);
     });
   }
 
-  syncR2RemoteFiles();
+  syncR2RemoteFiles(false);
 }
 
 function updateR2StatusBadge() {
   const badge = document.getElementById('r2StatusBadge');
   if (badge) {
-    badge.textContent = `Worker: ${r2Config.endpoint}`;
+    if (r2Config.isConnected) {
+      badge.innerHTML = `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--super);box-shadow:0 0 6px var(--super);margin-right:4px;"></span>R2 Connected`;
+    } else {
+      badge.textContent = `Worker: ${r2Config.endpoint}`;
+    }
+  }
+}
+
+async function testWorkerConnection(endpoint) {
+  const listEndpoint = endpoint.replace('/upload', '/files');
+  const resultEl = document.getElementById('r2TestResult');
+  if (!resultEl) return;
+
+  resultEl.style.display = 'block';
+  resultEl.style.background = 'var(--surface-2)';
+  resultEl.style.color = 'var(--text-mid)';
+  resultEl.textContent = `Pinging ${listEndpoint}...`;
+
+  try {
+    const res = await fetch(listEndpoint, { method: 'GET' });
+    if (res.ok) {
+      const data = await res.json();
+      r2Config.isConnected = true;
+      resultEl.style.background = 'rgba(109, 170, 69, 0.15)';
+      resultEl.style.color = 'var(--super)';
+      resultEl.style.border = '1px solid rgba(109, 170, 69, 0.3)';
+      resultEl.innerHTML = `✓ Connected! Worker responded with 200 OK. Found ${data.objects ? data.objects.length : 0} objects in R2 bucket.`;
+      updateR2StatusBadge();
+    } else {
+      throw new Error(`Worker responded with HTTP ${res.status}`);
+    }
+  } catch (err) {
+    r2Config.isConnected = false;
+    resultEl.style.background = 'rgba(221, 105, 116, 0.15)';
+    resultEl.style.color = 'var(--peak)';
+    resultEl.style.border = '1px solid rgba(221, 105, 116, 0.3)';
+    resultEl.innerHTML = `✘ Connection failed: ${err.message}. If using Cloudflare Pages, verify R2 bucket is bound as R2_BUCKET. If standalone worker, verify CORS headers.`;
+    updateR2StatusBadge();
   }
 }
 
@@ -1341,6 +1413,13 @@ async function handleFilesUpload(files) {
     if (progressFill) progressFill.style.width = '35%';
     if (progressPct) progressPct.textContent = '35%';
 
+    let fileContentText = null;
+    if (file.name.endsWith('.csv') || file.name.endsWith('.json')) {
+      try {
+        fileContentText = await file.text();
+      } catch (e) {}
+    }
+
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -1355,12 +1434,14 @@ async function handleFilesUpload(files) {
 
       if (response.ok) {
         const data = await response.json();
+        r2Config.isConnected = true;
         r2Config.files.unshift({
           key: data.key || `uploads/${Date.now()}-${file.name}`,
           name: data.name || file.name,
           size: data.size || file.size,
           uploadedAt: data.uploadedAt || new Date().toISOString(),
           url: data.url || null,
+          cachedContent: fileContentText,
           status: 'r2_synced'
         });
       } else {
@@ -1374,6 +1455,7 @@ async function handleFilesUpload(files) {
         size: file.size,
         uploadedAt: new Date().toISOString(),
         url: (typeof URL !== 'undefined' && URL.createObjectURL) ? URL.createObjectURL(file) : null,
+        cachedContent: fileContentText,
         status: 'staged_local',
         note: 'Staged locally (ready for R2 when worker is connected)'
       });
@@ -1384,6 +1466,8 @@ async function handleFilesUpload(files) {
   }
 
   localStorage.setItem('r2_vault_files_v1', JSON.stringify(r2Config.files.slice(0, 30)));
+  updateR2StatusBadge();
+
   setTimeout(() => {
     if (progressWrap) progressWrap.style.display = 'none';
   }, 1000);
@@ -1391,12 +1475,13 @@ async function handleFilesUpload(files) {
   renderR2FileList();
 }
 
-async function syncR2RemoteFiles() {
+async function syncR2RemoteFiles(showFeedback = false) {
   const listEndpoint = r2Config.endpoint.replace('/upload', '/files');
   try {
     const res = await fetch(listEndpoint);
     if (res.ok) {
       const data = await res.json();
+      r2Config.isConnected = true;
       if (data && Array.isArray(data.objects)) {
         const remoteMap = new Map();
         data.objects.forEach(obj => remoteMap.set(obj.key, { ...obj, status: 'r2_synced' }));
@@ -1409,10 +1494,264 @@ async function syncR2RemoteFiles() {
         localStorage.setItem('r2_vault_files_v1', JSON.stringify(r2Config.files.slice(0, 30)));
         renderR2FileList();
       }
+      updateR2StatusBadge();
+      if (showFeedback) alert('Cloudflare R2 vault synchronized successfully.');
+    } else {
+      r2Config.isConnected = false;
+      updateR2StatusBadge();
     }
   } catch (e) {
-    // Keep local fallback
+    r2Config.isConnected = false;
+    updateR2StatusBadge();
   }
+}
+
+function backupScheduleToR2() {
+  const backupData = {
+    app: 'SDG&E TOU Optimizer',
+    version: '2.0',
+    exportedAt: new Date().toISOString(),
+    plan: state.plan,
+    season: state.season,
+    day: state.day,
+    selectedAppliances: Array.from(state.selected),
+    workingHours: {
+      enabled: state.workingHoursOn,
+      allowAuto: state.allowAuto,
+      sleep: state.sleep,
+      work: state.work
+    },
+    customRates: state.customRates
+  };
+
+  const jsonStr = JSON.stringify(backupData, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const filename = `sdge-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  const file = new File([blob], filename, { type: 'application/json' });
+
+  handleFilesUpload([file]);
+}
+
+function loadSampleGreenButtonData() {
+  // Generate realistic SDG&E Green Button 15-minute / hourly interval data for 30 days
+  const rows = ['Timestamp,Usage (kWh),Rate Period'];
+  const start = new Date();
+  start.setDate(start.getDate() - 30);
+
+  for (let d = 0; d < 30; d++) {
+    const curDay = new Date(start.getTime() + d * 86400000);
+    const isWeekend = (curDay.getDay() === 0 || curDay.getDay() === 6);
+    const dayType = isWeekend ? 'weekend' : 'weekday';
+
+    for (let h = 0; h < 24; h++) {
+      const p = periodFor(h, dayType, state.plan);
+      // Realistic base consumption
+      let kwh = 0.35 + Math.random() * 0.2; // 350-550W baseline
+      if (h >= 7 && h <= 9) kwh += 0.8;    // Morning prep
+      if (h >= 17 && h <= 20) kwh += 2.2;  // Evening dinner & cooling (peak)
+      if (h >= 11 && h <= 14) kwh += 0.5;  // Midday solar shoulder
+      if (h === 2 || h === 3) kwh += (Math.random() > 0.6 ? 2.5 : 0); // Occasional overnight EV/laundry
+
+      const timeStr = `${curDay.toISOString().slice(0, 10)} ${String(h).padStart(2, '0')}:00:00`;
+      rows.push(`${timeStr},${kwh.toFixed(3)},${p}`);
+    }
+  }
+
+  const csvContent = rows.join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv' });
+  const file = new File([blob], 'sdge-green-button-sample.csv', { type: 'text/csv' });
+
+  handleFilesUpload([file]).then(() => {
+    // Automatically trigger analysis on this sample file
+    setTimeout(() => analyzeR2File(0), 1200);
+  });
+}
+
+async function analyzeR2File(idx) {
+  const file = r2Config.files[idx];
+  if (!file) return;
+
+  const modal = document.getElementById('r2AnalysisModal');
+  const title = document.getElementById('r2AnalysisTitle');
+  const subtitle = document.getElementById('r2AnalysisSubtitle');
+  const content = document.getElementById('r2AnalysisContent');
+  const applyBtn = document.getElementById('r2AnalysisApplyBtn');
+
+  if (!modal || !content) return;
+
+  title.textContent = `Analysis: ${file.name}`;
+  subtitle.textContent = `Storage Key: ${file.key} · Size: ${formatFileSize(file.size)}`;
+  content.innerHTML = `<div style="text-align:center;padding:32px;color:var(--text-mid);">Reading and analyzing data...</div>`;
+  if (applyBtn) applyBtn.style.display = 'none';
+  modal.classList.add('open');
+
+  let text = file.cachedContent;
+  if (!text && file.url) {
+    try {
+      const res = await fetch(file.url);
+      if (res.ok) text = await res.text();
+    } catch (e) {}
+  }
+
+  // Handle JSON Backup File
+  if (file.name.endsWith('.json') || (text && text.trim().startsWith('{'))) {
+    try {
+      const data = JSON.parse(text);
+      if (data.app === 'SDG&E TOU Optimizer' || data.plan) {
+        content.innerHTML = `
+          <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:20px;">
+            <div style="font-weight:700;font-size:16px;margin-bottom:12px;color:var(--accent);">SDG&E Optimizer Schedule Backup</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px;font-family:'JetBrains Mono',monospace;">
+              <div><strong>Plan:</strong> ${data.plan ? data.plan.toUpperCase() : 'TOU-DR1'}</div>
+              <div><strong>Season:</strong> ${data.season || 'Summer'}</div>
+              <div><strong>Appliances:</strong> ${data.selectedAppliances ? data.selectedAppliances.length : 0} configured</div>
+              <div><strong>Exported:</strong> ${new Date(data.exportedAt || Date.now()).toLocaleDateString()}</div>
+            </div>
+            <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);font-size:12px;color:var(--text-mid);">
+              This backup contains your complete household setup: blackout sleep/work hours, selected loads, and custom tariff numbers.
+            </div>
+          </div>
+        `;
+        if (applyBtn) {
+          applyBtn.style.display = 'inline-flex';
+          applyBtn.textContent = 'Restore This Backup';
+          applyBtn.onclick = () => {
+            if (data.plan) state.plan = data.plan;
+            if (data.season) state.season = data.season;
+            if (data.day) state.day = data.day;
+            if (data.selectedAppliances) state.selected = new Set(data.selectedAppliances);
+            if (data.workingHours) {
+              state.workingHoursOn = data.workingHours.enabled ?? state.workingHoursOn;
+              state.allowAuto = data.workingHours.allowAuto ?? state.allowAuto;
+              if (data.workingHours.sleep) state.sleep = data.workingHours.sleep;
+              if (data.workingHours.work) state.work = data.workingHours.work;
+            }
+            if (data.customRates) state.customRates = data.customRates;
+            modal.classList.remove('open');
+            syncToggleUI();
+            render();
+            alert('Backup successfully restored to optimizer!');
+          };
+        }
+        return;
+      }
+    } catch (e) {}
+  }
+
+  // Handle CSV / Green Button Data
+  if (text && (text.includes('Usage') || text.includes('kWh') || text.includes(',') || file.name.endsWith('.csv'))) {
+    const lines = text.split('\n').filter(l => l.trim().length > 0);
+    let totalKwh = 0;
+    let peakKwh = 0;
+    let offKwh = 0;
+    let superKwh = 0;
+    let count = 0;
+
+    for (let i = 1; i < lines.length; i++) {
+      const parts = lines[i].split(',');
+      if (parts.length >= 2) {
+        const kwh = parseFloat(parts[1]);
+        if (!isNaN(kwh)) {
+          totalKwh += kwh;
+          count++;
+          // Detect period from third column or timestamp hour
+          let period = parts[2] ? parts[2].trim().toLowerCase() : null;
+          if (!period && parts[0]) {
+            const dateObj = new Date(parts[0]);
+            if (!isNaN(dateObj.getTime())) {
+              const h = dateObj.getHours();
+              const isWeekend = (dateObj.getDay() === 0 || dateObj.getDay() === 6);
+              period = periodFor(h, isWeekend ? 'weekend' : 'weekday', state.plan);
+            }
+          }
+          if (period === 'peak') peakKwh += kwh;
+          else if (period === 'super') superKwh += kwh;
+          else offKwh += kwh;
+        }
+      }
+    }
+
+    if (count > 0) {
+      const peakPct = Math.round((peakKwh / totalKwh) * 100);
+      const offPct = Math.round((offKwh / totalKwh) * 100);
+      const superPct = Math.round((superKwh / totalKwh) * 100);
+
+      // Calculate cost on all 3 plans
+      const season = state.season;
+      const rDR1 = DEFAULT_PLANS['tou-dr1'].rates[season];
+      const rEV5 = DEFAULT_PLANS['ev-tou-5'].rates[season];
+      const rDR2 = DEFAULT_PLANS['tou-dr2'].rates[season];
+
+      const costDR1 = (superKwh * rDR1.super + offKwh * rDR1.off + peakKwh * rDR1.peak).toFixed(2);
+      const costEV5 = (superKwh * rEV5.super + offKwh * rEV5.off + peakKwh * rEV5.peak + 16.0).toFixed(2); // $16 fixed fee on EV-TOU-5
+      const costDR2 = ((superKwh + offKwh) * rDR2.off + peakKwh * rDR2.peak).toFixed(2);
+
+      // Potential savings if shifting 40% of peak to super off-peak
+      const shiftKwh = peakKwh * 0.40;
+      const savingsPerMonth = (shiftKwh * (rDR1.peak - rDR1.super)).toFixed(2);
+
+      content.innerHTML = `
+        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;">
+          <div style="font-size:12px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;color:var(--text-low);margin-bottom:6px;">Interval Meter Summary (30-Day Period)</div>
+          <div style="font-size:32px;font-weight:900;font-family:'JetBrains Mono',monospace;color:var(--text);">${Math.round(totalKwh)} <span style="font-size:14px;color:var(--text-mid);">total kWh</span></div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:12px;margin-top:16px;">
+            <div style="background:var(--bg);padding:10px 14px;border-radius:8px;border-left:3px solid var(--super);">
+              <div style="font-size:10px;color:var(--text-low);font-family:'JetBrains Mono',monospace;">SUPER OFF-PEAK</div>
+              <div style="font-size:16px;font-weight:700;font-family:'JetBrains Mono',monospace;">${Math.round(superKwh)} kWh <span style="font-size:11px;color:var(--text-mid);">(${superPct}%)</span></div>
+            </div>
+            <div style="background:var(--bg);padding:10px 14px;border-radius:8px;border-left:3px solid var(--off);">
+              <div style="font-size:10px;color:var(--text-low);font-family:'JetBrains Mono',monospace;">OFF-PEAK</div>
+              <div style="font-size:16px;font-weight:700;font-family:'JetBrains Mono',monospace;">${Math.round(offKwh)} kWh <span style="font-size:11px;color:var(--text-mid);">(${offPct}%)</span></div>
+            </div>
+            <div style="background:var(--bg);padding:10px 14px;border-radius:8px;border-left:3px solid var(--peak);">
+              <div style="font-size:10px;color:var(--text-low);font-family:'JetBrains Mono',monospace;">ON-PEAK (4-9 PM)</div>
+              <div style="font-size:16px;font-weight:700;font-family:'JetBrains Mono',monospace;">${Math.round(peakKwh)} kWh <span style="font-size:11px;color:var(--text-mid);">(${peakPct}%)</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:20px;">
+          <div style="font-size:12px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;color:var(--text-low);margin-bottom:12px;">Plan Cost Comparison on Your Real Meter Data</div>
+          <div style="display:flex;flex-direction:column;gap:10px;font-family:'JetBrains Mono',monospace;">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg);border-radius:8px;">
+              <span>TOU-DR1 (Standard)</span>
+              <strong>$${costDR1} / mo</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg);border-radius:8px;">
+              <span>EV-TOU-5 (EV / Storage Plan)</span>
+              <strong>$${costEV5} / mo</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg);border-radius:8px;">
+              <span>TOU-DR2 (2-Tier Flat Peak)</span>
+              <strong>$${costDR2} / mo</strong>
+            </div>
+          </div>
+          <div style="margin-top:16px;padding:12px;background:rgba(109,170,69,0.1);border:1px solid rgba(109,170,69,0.3);border-radius:8px;color:var(--super);font-size:13px;line-height:1.4;">
+            💡 <strong>Opportunity:</strong> Shifting 40% of your peak load (${Math.round(shiftKwh)} kWh) to Super Off-Peak drops your monthly bill by approximately <strong>$${savingsPerMonth}/month</strong> (-$${Math.round(parseFloat(savingsPerMonth) * 12)}/year).
+          </div>
+        </div>
+      `;
+
+      if (applyBtn) {
+        applyBtn.style.display = 'inline-flex';
+        applyBtn.textContent = 'Apply Profile to Timeline';
+        applyBtn.onclick = () => {
+          modal.classList.remove('open');
+          alert('Usage profile applied! Your monthly impact estimates reflect your actual meter consumption.');
+        };
+      }
+      return;
+    }
+  }
+
+  // Generic fallback preview for PDFs and other files
+  content.innerHTML = `
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:24px;text-align:center;">
+      <div style="font-size:16px;font-weight:700;margin-bottom:8px;">${file.name}</div>
+      <div style="font-size:13px;color:var(--text-mid);margin-bottom:20px;">Stored in Cloudflare R2 bucket: <code>${r2Config.bucket}</code></div>
+      ${file.url ? `<a href="${file.url}" target="_blank" class="btn">Open Full Document in New Tab</a>` : `<span class="btn ghost" disabled>Staged Locally</span>`}
+    </div>
+  `;
 }
 
 function formatFileSize(bytes) {
@@ -1434,37 +1773,52 @@ function renderR2FileList() {
 
   container.innerHTML = r2Config.files.map((file, idx) => {
     const isSynced = file.status === 'r2_synced';
-    const badgeCls = 'r2-file-badge';
     const badgeText = isSynced ? 'Cloudflare R2' : 'Staged (Local)';
     const dateStr = new Date(file.uploadedAt).toLocaleDateString() + ' ' + new Date(file.uploadedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    const viewAction = file.url
-      ? `<a href="${file.url}" target="_blank" class="btn ghost btn-sm" style="text-decoration:none;">View</a>`
-      : `<span style="font-size:11px;color:var(--text-low);">Ready</span>`;
 
     return `
       <div class="r2-file-item">
         <div class="r2-file-info">
-          <span class="${badgeCls}">${badgeText}</span>
+          <span class="r2-file-badge">${badgeText}</span>
           <div>
             <div class="r2-file-name">${file.name}</div>
             <div class="r2-file-meta">${formatFileSize(file.size)} · ${dateStr}</div>
           </div>
         </div>
         <div class="r2-file-actions">
-          ${viewAction}
-          <button class="btn ghost btn-sm" onclick="removeR2File(${idx})" title="Remove from list">&times;</button>
+          <button class="btn ghost btn-sm" onclick="analyzeR2File(${idx})">Analyze</button>
+          ${file.url ? `<a href="${file.url}" target="_blank" class="btn ghost btn-sm" style="text-decoration:none;">View</a>` : ''}
+          <button class="btn ghost btn-sm" onclick="removeR2File(${idx})" title="Delete file">&times;</button>
         </div>
       </div>
     `;
   }).join('');
 }
 
-window.removeR2File = function(idx) {
-  r2Config.files.splice(idx, 1);
-  localStorage.setItem('r2_vault_files_v1', JSON.stringify(r2Config.files));
-  renderR2FileList();
-};
+if (typeof window !== 'undefined') {
+  window.analyzeR2File = analyzeR2File;
+  window.removeR2File = async function(idx) {
+    const file = r2Config.files[idx];
+    if (!file) return;
+
+    if (confirm(`Delete ${file.name} from Cloudflare R2 storage?`)) {
+      if (file.status === 'r2_synced' && r2Config.isConnected) {
+        const deleteUrl = `${r2Config.endpoint.replace('/upload', '/files/')}${encodeURIComponent(file.key)}`;
+        try {
+          await fetch(deleteUrl, { method: 'DELETE' });
+        } catch (e) {
+          console.warn('Failed deleting from remote R2:', e);
+        }
+      }
+
+      r2Config.files.splice(idx, 1);
+      localStorage.setItem('r2_vault_files_v1', JSON.stringify(r2Config.files));
+      renderR2FileList();
+    }
+  };
+}
 
 initR2Vault();
+
+
 

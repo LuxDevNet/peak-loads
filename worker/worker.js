@@ -111,6 +111,23 @@ export default {
       return new Response(obj.body, { headers });
     }
 
+    // Route: DELETE /api/files/:key
+    if (url.pathname.startsWith('/api/files/') && request.method === 'DELETE') {
+      const key = decodeURIComponent(url.pathname.replace('/api/files/', ''));
+      try {
+        await bucket.delete(key);
+        return new Response(JSON.stringify({ success: true, key }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      } catch (err) {
+        return new Response(JSON.stringify({ error: err.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     return new Response(JSON.stringify({ status: 'SDG&E R2 Storage Worker Active' }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

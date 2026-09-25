@@ -1757,10 +1757,20 @@
       <div class="r2-vault-list-wrap">
         <div class="r2-vault-head">
           <div class="r2-vault-title">Vault Files</div>
-          <button class="btn ghost btn-sm" id="r2RefreshBtn">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19"/></svg>
-            Refresh
-          </button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn ghost btn-sm" id="r2BackupBtn" title="Backup your current appliances & schedule to R2">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              Backup Schedule
+            </button>
+            <button class="btn ghost btn-sm" id="r2SampleBtn" title="Load sample SDG&E Green Button interval data">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              Load Sample Bill Data
+            </button>
+            <button class="btn ghost btn-sm" id="r2RefreshBtn">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19"/></svg>
+              Refresh
+            </button>
+          </div>
         </div>
         <div class="r2-file-list" id="r2FileList">
           <div class="r2-empty">No files uploaded yet. Drag and drop bills or schedules above to store in your R2 bucket.</div>
@@ -1860,11 +1870,35 @@
     </div>
 
     <div class="modal-actions">
-      <button class="btn ghost" id="r2ConfigResetBtn">Reset to /api/upload</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn ghost" id="r2ConfigResetBtn">Reset</button>
+        <button class="btn ghost" id="r2TestConnectionBtn">Test Connection</button>
+      </div>
       <div style="display:flex;gap:8px;">
         <button class="btn ghost" id="r2ConfigCancelBtn">Cancel</button>
         <button class="btn" id="r2ConfigSaveBtn">Save Endpoint</button>
       </div>
+    </div>
+    <div id="r2TestResult" style="margin-top:14px;padding:10px 14px;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:12px;display:none;"></div>
+  </div>
+</div>
+
+<!-- CLOUDFLARE R2 FILE ANALYSIS MODAL -->
+<div class="modal-overlay" id="r2AnalysisModal">
+  <div class="modal-box" style="max-width: 680px;">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="r2AnalysisTitle">SDG&amp;E Bill &amp; Usage Analysis</div>
+        <div class="modal-subtitle" id="r2AnalysisSubtitle">Parsed interval data and TOU rate comparison</div>
+      </div>
+      <button class="modal-close" id="r2AnalysisCloseBtn">&times;</button>
+    </div>
+
+    <div id="r2AnalysisContent" style="margin-top:16px;"></div>
+
+    <div class="modal-actions" id="r2AnalysisActions">
+      <button class="btn ghost" id="r2AnalysisCloseBottomBtn">Close</button>
+      <button class="btn" id="r2AnalysisApplyBtn" style="display:none;">Apply to Optimizer</button>
     </div>
   </div>
 </div>
